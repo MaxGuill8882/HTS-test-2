@@ -1,0 +1,14 @@
+{
+  "nom": "Yannick",
+  "type": "enfant",
+  "pin": "1111",
+  "taches": {
+    "lundi": ["Nettoyer Litière salon (Soir)","Eau et bouffe salon (Soir)","Ranger sa chambre", "Laver son linge"],
+    "mardi": ["Nettoyer Litière salon (Soir)","Eau et bouffe salon (Soir)","Aide Cuisinier Souper"],
+    "mercredi": ["Nettoyer Litière salon (Soir)","Eau et bouffe salon (Soir)"],
+    "jeudi": ["Nettoyer Litière salon (Soir)","Eau et bouffe salon (Soir)"],
+    "vendredi": ["Nettoyer Litière salon (Soir)","Eau et bouffe salon (Soir)","Balais escalier sous-sol","Ranger sous-sol"],
+    "samedi": ["Nettoyer Litière salon (Soir)","Eau et bouffe salon (Soir)"],
+    "dimanche": ["Nettoyer Litière salon (Soir)","Eau et bouffe salon (Soir)"]
+  }
+}

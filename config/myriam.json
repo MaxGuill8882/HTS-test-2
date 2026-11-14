@@ -1,0 +1,14 @@
+{
+  "nom": "Myriam",
+  "type": "enfant",
+  "pin": "1111",
+  "taches": {
+    "lundi": ["Faire la cage (Matin)","Aide Cuisinière Diner","Ranger sa chambre"],
+    "mardi": ["Faire la cage (Matin)","Fur Lax"],
+    "mercredi": ["Faire la cage (Matin)"],
+    "jeudi": ["Faire la cage (Matin)","Lavage"],
+    "vendredi": ["Faire la cage (Matin)","Balais escalier sous-sol","Ramasser salon"],
+    "samedi": [],
+    "dimanche": []
+  }
+}

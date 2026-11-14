@@ -1,0 +1,14 @@
+{
+  "nom": "Valérie",
+  "type": "enfant",
+  "pin": "1111",
+  "taches": {
+    "lundi": ["Eau et bouffe Salon (Matin)", "Soupe pour Furets","Ranger sa chambre"],
+    "mardi": ["Eau et bouffe Salon (Matin)", "Soupe pour Furets"],
+    "mercredi": ["Eau et bouffe Salon (Matin)", "Soupe pour Furets","Aide Cuisinière Diner"],
+    "jeudi": ["Eau et bouffe Salon (Matin)", "Soupe pour Furets","Lavage"],
+    "vendredi": ["Eau et bouffe Salon (Matin)", "Soupe pour Furets","Nettoyer salle d'eau","Ranger entrée et arrière"],
+    "samedi": [],
+    "dimanche": []
+  }
+}

@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le Carnet de la Maison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<!-- EmailJS -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<style>
+/* ============================================================
+   ZONE DE CONFIGURATION — À REMPLIR PAR TOI
+   ============================================================ */
+</style>
+</head>
+<body>
+
+<script>
+/* ============================================================
+   1) CONFIGURATION FIREBASE
+   Va chercher ce bloc dans la console Firebase :
+   Paramètres du projet > Général > Vos applications > Config
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyAZLQZeNTnY1CXekyrePwnzBb-Yo1v6ePc",
+  authDomain: "taches-maison-d5a9c.firebaseapp.com",
+  projectId: "taches-maison-d5a9c",
+  storageBucket: "taches-maison-d5a9c.firebasestorage.app",
+  messagingSenderId: "246007386631",
+  appId: "1:246007386631:web:0f0b8b0c55d395e71a10a2"
+};
+
+/* ============================================================
+   2) CONFIGURATION EMAILJS
+   Service ID, Template ID et Public Key depuis ton compte EmailJS
+   Le template utilise les variables : {{child_name}}, {{task_name}}
+   Les destinataires (To Email) sont déjà configurés en dur dans
+   le template EmailJS — pas besoin de {{to_email}}.
+   ============================================================ */
+const EMAILJS_PUBLIC_KEY  = "FJCot7ZWPE_zIE7G-";
+const EMAILJS_SERVICE_ID  = "service_rtjo66w";
+const EMAILJS_TEMPLATE_ID = "template_mx01xg9";
+
+/*const PARENT_EMAILS = ["michaudlaurence@hotmail.com", "martinguillemette622@gmail.com"];
+
+/* ============================================================
+   2bis) COURRIELS DE SECOURS PAR PERSONNE
+   Utilisés uniquement si le fichier config/<id>.json de la
+   personne ne contient PAS de champ "email". Ça évite que les
+   notifications restent silencieusement désactivées si les
+   fichiers JSON n'ont pas été mis à jour.
+   Idéalement, ajoute plutôt "email": "..." directement dans
+   config/martin.json et config/laurence.json — cette table de
+   secours n'est qu'un filet de sécurité.
+   ============================================================ */
+const EMAILS_SECOURS = {
+  martin: "martinguillemette622@gmail.com",
+  laurence: "michaudlaurence@hotmail.com"
+};
+
+function obtenirEmailParent(id, p){
+  return (p && p.email) || EMAILS_SECOURS[id] || null;
+}
+
+/* ============================================================
+   3) LES PERSONNES ET LEURS TÂCHES
+   Chaque personne a maintenant son propre fichier de config :
+   config/<id>.json  (ex: config/maxime.json)
+
+   Structure attendue dans chaque fichier :
+   {
+     "nom": "Maxime",
+     "type": "enfant",              // "parent" ou "enfant"
+     "pin": "1111",                 // code à 4 chiffres
+     "email": "adresse@exemple.com", // optionnel pour "enfant", requis pour "parent"
+     "taches": {
+       "lundi": ["Faire son lit", "..."],
+       "mardi": [...],
+       ... (tous les jours de la semaine)
+     }
+   }
+
+   Pour ajouter/retirer une tâche : édite simplement le fichier
+   JSON de la personne concernée, pas besoin de toucher au HTML.
+   Pour ajouter une nouvelle personne : crée son fichier JSON dans
+   config/ ET ajoute son identifiant dans la liste ci-dessous.
+   ============================================================ */
+const IDENTIFIANTS_PERSONNES = ["valerie", "laurence", "martin", "maxime", "yannick", "myriam"];
+
+const PERSONNE_META = {
+  martin: {
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80",
+    banner: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80"
+  },
+  laurence: {
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=500&q=80",
+    banner: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80"
+  },
+  maxime: {
+    avatar: "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=500&q=80",
+    banner: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=80"
+  },
+  yannick: {
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=80",
+    banner: "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1200&q=80"
+  },
+  myriam: {
+    avatar: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=500&q=80",
+    banner: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"
+  },
+  valerie: {
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=500&q=80",
+    banner: "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1200&q=80"
+  }
+};
+
+/* ============================================================
+   IMAGES DES PERSONNES (stockées dans le dépôt)
+   config/images/<dossier>/icon.png      -> photo ronde sur la carte
+   config/images/<dossier>/banniere.png  -> fond d'écran quand la personne est au centre
+   Le dossier porte l'identifiant de la personne (ex. "laurence"), sauf exceptions
+   ci-dessous (ex. "valerie" -> dossier « valérie », avec accent).
+   Si un fichier manque, on essaie d'autres extensions (jpg, jpeg, webp), puis
+   l'image de secours de PERSONNE_META.
+   ============================================================ */
+const DOSSIER_IMAGES = "config/images";
+const DOSSIERS_PERSONNES = { valerie: ["valérie", "valerie"] };
+const EXTENSIONS_IMAGES = ["png", "jpg", "jpeg", "webp"];
+const IMAGES_PERSONNES = {}; // id -> { icone, banniere } (URL déjà vérifiées)
+
+function candidatsImage(id, noms){
+  const dossiers = DOSSIERS_PERSONNES[id] || [id];
+  const urls = [];
+  dossiers.forEach(d => noms.forEach(nom => EXTENSIONS_IMAGES.forEach(ext => {
+    urls.push(`${DOSSIER_IMAGES}/${encodeURIComponent(d)}/${nom}.${ext}`);
+  })));
+  return urls;
+}
+
+function sondeImage(url){
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => resolve(true);
+    im.onerror = () => resolve(false);
+    im.src = url;
+  });
+}
+
+async function premiereImageValide(urls){
+  for(const u of urls){
+    if(u && await sondeImage(u)) return u;
+  }
+  return null;
+}
+
+async function chargerImagesPersonnes(){
+  await Promise.all(IDENTIFIANTS_PERSONNES.map(async (id) => {
+    const meta = PERSONNE_META[id] || {};
+    const [icone, banniere] = await Promise.all([
+      premiereImageValide([...candidatsImage(id, ["icon"]), meta.avatar]),
+      premiereImageValide([...candidatsImage(id, ["banniere", "banner"]), meta.banner])
+    ]);
+    IMAGES_PERSONNES[id] = { icone, banniere };
+    if(vueActuelle === "login") majAvatarsAccueil(); // met à jour cartes + fond au fur et à mesure
+  }));
+}
+
+let PERSONNES = {};
+let CONFIG_MANQUANTE = []; // ids dont config/<id>.json n'a pas pu être lu
+let TACHES = {};
+
+function obtenirIdsPersonnes(){
+  return Object.keys(PERSONNES);
+}
+
+async function chargerConfigPersonnes(){
+  const resultats = await Promise.all(
+    IDENTIFIANTS_PERSONNES.map(async (id) => {
+      try{
+        const reponse = await fetch(`config/${id}.json`, { cache: "no-store" });
+        if(!reponse.ok) throw new Error(`Fichier introuvable : config/${id}.json`);
+        const data = await reponse.json();
+        return { id, data };
+      }catch(e){
+        console.error(`Erreur de chargement pour "${id}":`, e);
+        return { id, data: null };
+      }
+    })
+  );
+
+  resultats.forEach(({ id, data }) => {
+    if(!data){
+      // Fichier illisible (ex. page ouverte en double-clic = file://, ou fichier absent).
+      // On garde la carte pour que l'écran s'affiche, mais sans code PIN : connexion impossible.
+      CONFIG_MANQUANTE.push(id);
+      PERSONNES[id] = { nom: id.charAt(0).toUpperCase() + id.slice(1), type: "enfant", pin: null, email: null, horsConfig: true };
+      TACHES[id] = {};
+      return;
+    }
+    PERSONNES[id] = { nom: data.nom, type: data.type, pin: data.pin, email: data.email || null };
+    TACHES[id] = data.taches || {};
+  });
+}
+
+/* ============================================================
+   5) THÈMES DE COULEUR DISPONIBLES
+   Chaque personne peut choisir l'un de ces thèmes ; le choix est
+   sauvegardé dans Firebase et s'applique peu importe l'appareil.
+   Facile d'ajouter un thème : copie un bloc et change les couleurs.
+   ============================================================ */
+const THEMES = {
+  bleu: {
+    label: "Bleu",
+    swatch: "#3B82F6",
+    variables: {
+      "--fond": "#E9EDF3", "--texte": "#2B3444", "--texte-doux": "#8A93A6",
+      "--accent": "#3B82F6", "--accent-doux": "#DCE9FF",
+      "--valide": "#34C77B", "--danger": "#F0645A",
+      "--ombre-c1": "#c3cad6", "--ombre-c2": "#ffffff"
+    }
+  },
+  vert: {
+    label: "Nature",
+    swatch: "#4C9A6A",
+    variables: {
+      "--fond": "#E8EEE8", "--texte": "#2C3A2F", "--texte-doux": "#7E9086",
+      "--accent": "#4C9A6A", "--accent-doux": "#D9EEDF",
+      "--valide": "#34C77B", "--danger": "#E0685B",
+      "--ombre-c1": "#c2ccc4", "--ombre-c2": "#ffffff"
+    }
+  },
+  rose: {
+    label: "Douceur",
+    swatch: "#E0708C",
+    variables: {
+      "--fond": "#F3E9ED", "--texte": "#3A2B33", "--texte-doux": "#A6858F",
+      "--accent": "#E0708C", "--accent-doux": "#FBDCE4",
+      "--valide": "#34C77B", "--danger": "#D9504F",
+      "--ombre-c1": "#d6c3ca", "--ombre-c2": "#ffffff"
+    }
+  },
+  soleil: {
+    label: "Soleil",
+    swatch: "#E0A030",
+    variables: {
+      "--fond": "#F3EEE3", "--texte": "#3A3226", "--texte-doux": "#A69880",
+      "--accent": "#E0A030", "--accent-doux": "#FBEBCF",
+      "--valide": "#34C77B", "--danger": "#E0645A",
+      "--ombre-c1": "#d6cdb8", "--ombre-c2": "#ffffff"
+    }
+  },
+  nuit: {
+    label: "Nuit",
+    swatch: "#6C8CFF",
+    variables: {
+      "--fond": "#242832", "--texte": "#E9EDF3", "--texte-doux": "#8D93A3",
+      "--accent": "#6C8CFF", "--accent-doux": "#333B52",
+      "--valide": "#3ED890", "--danger": "#FF7A70",
+      "--ombre-c1": "#1a1d24", "--ombre-c2": "#2e333f"
+    }
+  }
+};
+
+function appliquerTheme(themeId){
+  const theme = THEMES[themeId] || THEMES.bleu;
+  const racine = document.documentElement;
+  Object.entries(theme.variables).forEach(([variable, valeur])=>{
+    racine.style.setProperty(variable, valeur);
+  });
+}
+
+/* ============================================================
+   ICÔNES SVG (remplacent les emojis dans le menu de personnalisation)
+   ============================================================ */
+const ICONES = {
+  crayon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`,
+  fermer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>`,
+  image: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>`,
+  camera: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.5"/></svg>`,
+  cloche: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`
+};
+</script>
+
+<div id="app"></div>
+
+<div id="fond-modale" class="fond-modale" style="display:none;">
+  <div class="boite-modale">
+    <div class="icone-modale"></div>
+    <p id="texte-modale"></p>
+    <div class="boutons-modale">
+      <button class="btn-annuler" onclick="annulerAction()">Annuler</button>
+      <button class="btn-confirmer" onclick="confirmerAction()">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="input-photo" accept="image/*" capture="environment" style="display:none;" onchange="gererFichierPhoto(event)">
+
+<div id="fond-modale-notifications" class="fond-modale" style="display:none;">
+  <div class="boite-modale" id="boite-notifications" data-mode-choisi="immediat">
+  </div>
+</div>
+
+
+<style>
+:root{
+  --fond:#E9EDF3;
+  --texte:#2B3444;
+  --texte-doux:#8A93A6;
+  --accent:#3B82F6;
+  --accent-doux:#DCE9FF;
+  --valide:#34C77B;
+  --danger:#F0645A;
+  --ombre-c1:#c3cad6;
+  --ombre-c2:#ffffff;
+  --radius:18px;
+  --ombre-ext: 8px 8px 16px var(--ombre-c1), -8px -8px 16px var(--ombre-c2);
+  --ombre-ext-sm: 4px 4px 10px var(--ombre-c1), -4px -4px 10px var(--ombre-c2);
+  --ombre-int: inset 4px 4px 8px var(--ombre-c1), inset -4px -4px 8px var(--ombre-c2);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    linear-gradient(180deg, rgba(106, 196, 246, 0.24), rgba(5, 92, 159, 0.18)),
+    url('https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1800&q=80') center/cover no-repeat fixed;
+  font-family:'Poppins', sans-serif;
+  color:var(--texte);
+  min-height:100vh;
+}
+#app{
+  max-width:100%;
+  margin:0 auto;
+  min-height:100vh;
+  padding:28px 18px 60px;
+  background:transparent;
+}
+h1,h2,h3{
+  font-family:'Poppins', sans-serif;
+  margin:0;
+}
+.entete{
+  text-align:left;
+  margin-bottom:26px;
+}
+.entete h1{
+  font-size:1.5rem;
+  font-weight:700;
+  color:var(--texte);
+  letter-spacing:0.2px;
+}
+
+/* ============================================================
+   ÉCRAN DE SÉLECTION — carrousel façon « Switch Sports »
+   Pour mettre ta capture Minecraft en fond : enregistre-la sous
+   le nom  fond.jpg  à côté de index.html (sinon, image par défaut).
+   ============================================================ */
+.ecran-selection{
+  position:fixed; inset:0; z-index:1;
+  display:flex; flex-direction:column; justify-content:space-between;
+  overflow:hidden;
+  background:
+    url('fond.jpg') center/cover no-repeat,
+    url('https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1800&q=80') center/cover no-repeat;
+  font-family:'Anton','Bebas Neue','Impact',sans-serif;
+  -webkit-user-select:none; user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.fond-accueil{
+  position:absolute; inset:0; z-index:0;
+  pointer-events:none;
+}
+.fond-calque{
+  position:absolute; inset:0;
+  background:center/cover no-repeat;
+  opacity:0;
+  will-change:opacity;
+}
+.selection-header{
+  position:relative; z-index:2;
+  padding:clamp(10px,3vh,28px) 16px 0;
+  text-align:center;
+  color:#0a0a0a;
+  line-height:1.18;
+}
+.selection-header .heure{
+  display:block;
+  font-size:clamp(1.9rem,4.4vw,3.1rem);
+  font-weight:400;
+  letter-spacing:0.05em;
+}
+.selection-header .date{
+  display:block;
+  font-size:clamp(1.55rem,3.7vw,2.6rem);
+  font-weight:400;
+  letter-spacing:0.02em;
+}
+.alerte-config{
+  position:relative; z-index:2;
+  align-self:center;
+  max-width:min(92%,560px);
+  margin:0 auto;
+  padding:10px 16px;
+  border-radius:14px;
+  background:rgba(0,0,0,0.62);
+  color:#fff;
+  font-family:'Poppins',sans-serif;
+  font-size:0.8rem;
+  line-height:1.4;
+  text-align:center;
+}
+.carousel-famille{
+  --cw:220px;
+  position:relative; z-index:2;
+  width:100%;
+  height:calc(var(--cw) * 0.68 + 24px);
+  margin-bottom:clamp(14px,6vh,48px);
+  touch-action:none;
+  cursor:grab;
+}
+.carousel-famille:active{ cursor:grabbing; }
+.famille-card{
+  position:absolute;
+  left:50%; bottom:0;
+  width:var(--cw);
+  height:calc(var(--cw) * 0.68);
+  margin-left:calc(var(--cw) / -2);
+  border-radius:calc(var(--cw) * 0.13);
+  background:var(--accent,#3B82F6);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:calc(var(--cw) * 0.06);
+  transform-origin:50% 100%;
+  will-change:transform;
+  -webkit-user-drag:none;
+}
+.carte-avatar{
+  flex-shrink:0;
+  width:calc(var(--cw) * 0.29);
+  height:calc(var(--cw) * 0.29);
+  border-radius:50%;
+  background:#a3a3b6;
+  overflow:hidden;
+}
+.carte-avatar img{
+  width:100%; height:100%;
+  object-fit:cover; display:block;
+  pointer-events:none;
+  -webkit-user-drag:none;
+}
+.famille-card__nom{
+  font-family:'Anton','Bebas Neue','Impact',sans-serif;
+  font-size:calc(var(--cw) * 0.128);
+  font-weight:400;
+  letter-spacing:0.01em;
+  line-height:1;
+  color:#0a0a0a;
+  pointer-events:none;
+}
+
+/* --- Ecran PIN --- */
+.ecran-pin {
+  text-align:center;
+  margin-top:30px;
+}
+.ecran-pin h2{ font-size:1.25rem; margin-bottom:6px; font-weight:600; color:var(--texte); }
+.ecran-pin .retour{
+  display:inline-block;
+  margin-bottom:24px;
+  color:var(--texte-doux);
+  font-size:0.85rem;
+  cursor:pointer;
+}
+.pin-points{
+  display:flex;
+  justify-content:center;
+  gap:14px;
+  margin:22px 0 30px;
+}
+.pin-point{
+  width:16px;height:16px;border-radius:50%;
+  background:var(--fond);
+  box-shadow:var(--ombre-int);
+}
+.pin-point.rempli{ background:var(--accent); box-shadow:none; }
+.pavé-numerique{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+  max-width:260px;
+  margin:0 auto;
+}
+.touche{
+  padding:18px 0;
+  font-size:1.2rem;
+  font-family:'Poppins',sans-serif;
+  font-weight:500;
+  background:var(--fond);
+  border:none;
+  border-radius:var(--radius);
+  box-shadow:var(--ombre-ext-sm);
+  cursor:pointer;
+  color:var(--texte);
+}
+.touche:active{ box-shadow:var(--ombre-int); color:var(--accent); }
+.touche.effacer{ font-size:1rem; }
+.erreur-pin{
+  color:var(--danger);
+  font-size:0.85rem;
+  margin-top:14px;
+  min-height:18px;
+}
+
+/* --- Ecran tâches --- */
+.ecran-taches {
+  max-width: 520px;
+  margin:0 auto;
+}
+.barre-haut{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  margin-bottom:18px;
+  padding: 14px 16px;
+  border-radius: 24px;
+  background: rgba(255,255,255,0.52);
+  box-shadow: 0 12px 24px rgba(34,72,104,0.1);
+  backdrop-filter: blur(4px);
+}
+.deconnexion{
+  font-size:0.78rem;
+  color:var(--texte-doux);
+  cursor:pointer;
+  padding:10px 14px;
+  border-radius:12px;
+  background:rgba(255,255,255,0.7);
+  box-shadow:0 6px 12px rgba(43,52,68,0.08);
+}
+.deconnexion:active{ box-shadow:var(--ombre-int); }
+.bienvenue{
+  font-size:1.1rem;
+  font-weight:700;
+  color:var(--texte);
+}
+.selecteur-jour{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:linear-gradient(135deg, #5cc7ef, #3e7af5);
+  border-radius:26px;
+  box-shadow:0 16px 28px rgba(44,117,217,0.2);
+  padding:18px 18px;
+  margin-bottom:18px;
+  color:white;
+}
+.selecteur-jour .fleche{
+  cursor:pointer;
+  font-size:1.6rem;
+  width:42px;height:42px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.18);
+  user-select:none;
+}
+.selecteur-jour .date-texte{
+  text-align:center;
+  flex:1;
+  color:white;
+}
+.selecteur-jour .date-texte .jour-nom{
+  font-family:'Poppins',sans-serif;
+  font-size:1.15rem;
+  font-weight:700;
+  text-transform:capitalize;
+}
+.selecteur-jour .date-texte .jour-num{
+  font-size:0.78rem;
+  opacity:0.9;
+}
+.bouton-aujourdhui{
+  display:block;
+  margin:0 auto 22px;
+  padding:10px 20px;
+  font-family:'Poppins',sans-serif;
+  font-size:0.8rem;
+  font-weight:700;
+  color:#1d4f8c;
+  background:rgba(255,255,255,0.86);
+  border:none;
+  border-radius:14px;
+  box-shadow:0 10px 16px rgba(46,82,123,0.13);
+  cursor:pointer;
+}
+.bouton-aujourdhui:active{ box-shadow:var(--ombre-int); }
+
+.liste-taches{
+  border-radius:26px;
+  overflow:hidden;
+  background:rgba(255,255,255,0.3);
+  box-shadow:0 16px 26px rgba(34,56,82,0.12);
+  padding:8px;
+}
+.tache{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:14px 14px;
+  border-radius:18px;
+  background:rgba(255,255,255,0.78);
+  margin:6px 0;
+  box-shadow: inset 0 0 0 1px rgba(128,155,186,0.12);
+}
+.case{
+  flex-shrink:0;
+  width:28px;height:28px;
+  border-radius:9px;
+  background:linear-gradient(135deg, #edf5ff, #dfeaf9);
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.9), 0 4px 8px rgba(63,81,106,0.08);
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.9rem;
+  color:transparent;
+}
+.case.fait{
+  background:linear-gradient(135deg, #a4b8c7, #7d8da0);
+  box-shadow:none;
+  color:#fff;
+}
+.case.valide{
+  background:linear-gradient(135deg, #27d38d, #1ab76b);
+  box-shadow:none;
+  color:#fff;
+}
+.texte-tache{
+  flex:1;
+  font-size:0.95rem;
+  font-weight:600;
+  color:var(--texte);
+}
+.texte-tache.fait{
+  color:var(--texte-doux);
+  text-decoration:line-through;
+}
+.etiquette-attente{
+  font-size:0.64rem;
+  color:#1d5bb8;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  font-weight:700;
+}
+.vide{
+  text-align:center;
+  padding:44px 18px;
+  color:rgba(255,255,255,0.9);
+  font-weight:600;
+  background:rgba(255,255,255,0.12);
+  border-radius:22px;
+}
+
+.section-titre{
+  font-family:'Poppins',sans-serif;
+  font-size:0.95rem;
+  font-weight:700;
+  margin:22px 0 12px;
+  color:rgba(255,255,255,0.95);
+  text-shadow:0 4px 10px rgba(0,0,0,0.12);
+}
+.carte-membre{
+  border-radius:22px;
+  background:rgba(255,255,255,0.28);
+  margin-bottom:14px;
+  overflow:hidden;
+  box-shadow:0 12px 22px rgba(32,56,85,0.09);
+  padding:6px;
+}
+.carte-membre .titre-membre{
+  padding:12px 14px 8px;
+  font-weight:700;
+  font-size:0.95rem;
+  color:white;
+}
+.bouton-valider{
+  background:linear-gradient(135deg, #31b8ff, #2989ff);
+  color:#fff;
+  border:none;
+  padding:8px 14px;
+  border-radius:10px;
+  font-size:0.72rem;
+  cursor:pointer;
+  font-weight:700;
+  font-family:'Poppins',sans-serif;
+}
+.bouton-valider:active{ opacity:0.85; }
+.bouton-decocher{
+  background:transparent;
+  color:var(--texte-doux);
+  border:2px solid var(--ombre-c1);
+  padding:6px 12px;
+  border-radius:10px;
+  font-size:0.72rem;
+  cursor:pointer;
+  font-weight:600;
+  font-family:'Poppins',sans-serif;
+  margin-left:6px;
+}
+
+/* --- Écran PIN --- */
+.ecran-pin{
+  text-align:center;
+  margin-top:30px;
+}
+.ecran-pin h2{ font-size:1.25rem; margin-bottom:6px; font-weight:600;}
+.ecran-pin .retour{
+  display:inline-block;
+  margin-bottom:24px;
+  color:var(--texte-doux);
+  font-size:0.85rem;
+  cursor:pointer;
+}
+.pin-points{
+  display:flex;
+  justify-content:center;
+  gap:14px;
+  margin:22px 0 30px;
+}
+.pin-point{
+  width:16px;height:16px;border-radius:50%;
+  background:var(--fond);
+  box-shadow:var(--ombre-int);
+}
+.pin-point.rempli{ background:var(--accent); box-shadow:none; }
+.pavé-numerique{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+  max-width:260px;
+  margin:0 auto;
+}
+.touche{
+  padding:18px 0;
+  font-size:1.2rem;
+  font-family:'Poppins',sans-serif;
+  font-weight:500;
+  background:var(--fond);
+  border:none;
+  border-radius:var(--radius);
+  box-shadow:var(--ombre-ext-sm);
+  cursor:pointer;
+  color:var(--texte);
+}
+.touche:active{ box-shadow:var(--ombre-int); color:var(--accent); }
+.touche.effacer{ font-size:1rem; }
+.erreur-pin{
+  color:var(--danger);
+  font-size:0.85rem;
+  margin-top:14px;
+  min-height:18px;
+}
+
+/* --- Écran principal --- */
+.barre-haut{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:22px;
+}
+.deconnexion{
+  font-size:0.78rem;
+  color:var(--texte-doux);
+  cursor:pointer;
+  padding:8px 14px;
+  border-radius:12px;
+  box-shadow:var(--ombre-ext-sm);
+}
+.deconnexion:active{ box-shadow:var(--ombre-int); }
+.bienvenue{
+  font-size:1.3rem;
+  font-weight:600;
+}
+
+.selecteur-jour{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--fond);
+  border-radius:var(--radius);
+  box-shadow:var(--ombre-ext);
+  padding:16px 18px;
+  margin-bottom:16px;
+}
+.selecteur-jour .fleche{
+  cursor:pointer;
+  font-size:1.2rem;
+  width:36px;height:36px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--ombre-ext-sm);
+  user-select:none;
+  color:var(--accent);
+}
+.selecteur-jour .fleche:active{ box-shadow:var(--ombre-int); }
+.selecteur-jour .date-texte{
+  text-align:center;
+  flex:1;
+}
+.selecteur-jour .date-texte .jour-nom{
+  font-family:'Poppins',sans-serif;
+  font-size:1.05rem;
+  font-weight:600;
+  text-transform:capitalize;
+}
+.selecteur-jour .date-texte .jour-num{
+  font-size:0.75rem;
+  color:var(--texte-doux);
+}
+.bouton-aujourdhui{
+  display:block;
+  margin:0 auto 22px;
+  padding:9px 22px;
+  font-family:'Poppins',sans-serif;
+  font-size:0.78rem;
+  font-weight:600;
+  color:var(--accent);
+  background:var(--fond);
+  border:none;
+  border-radius:14px;
+  box-shadow:var(--ombre-ext-sm);
+  cursor:pointer;
+}
+.bouton-aujourdhui:active{ box-shadow:var(--ombre-int); }
+
+.liste-taches{
+  border-radius:var(--radius);
+  overflow:hidden;
+  background:var(--fond);
+  box-shadow:var(--ombre-ext);
+  padding:6px 4px;
+}
+.tache{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:14px 14px;
+  cursor:pointer;
+}
+.tache:has(.case.fait),
+.tache:has(.case.valide){
+  cursor:default;
+}
+.case{
+  flex-shrink:0;
+  width:26px;height:26px;
+  border-radius:9px;
+  background:var(--fond);
+  box-shadow:var(--ombre-int);
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.95rem;
+  color:transparent;
+}
+.case.fait{
+  background:var(--texte-doux);
+  box-shadow:none;
+  color:#fff;
+}
+.case.valide{
+  background:var(--valide);
+  box-shadow:none;
+  color:#fff;
+}
+.texte-tache{
+  flex:1;
+  font-size:0.95rem;
+  font-weight:500;
+}
+.texte-tache.fait{
+  color:var(--texte-doux);
+  text-decoration:line-through;
+}
+.etiquette-attente{
+  font-size:0.65rem;
+  color:var(--accent);
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+  font-weight:700;
+}
+.vide{
+  text-align:center;
+  padding:50px 20px;
+  color:var(--texte-doux);
+  font-weight:500;
+}
+
+/* --- Vue parent (validation) --- */
+.section-titre{
+  font-family:'Poppins',sans-serif;
+  font-size:0.95rem;
+  font-weight:600;
+  margin:24px 0 10px;
+  color:var(--texte);
+}
+.carte-membre{
+  border-radius:var(--radius);
+  background:var(--fond);
+  box-shadow:var(--ombre-ext);
+  margin-bottom:16px;
+  overflow:hidden;
+  padding:4px;
+}
+.carte-membre .titre-membre{
+  padding:12px 14px 6px;
+  font-weight:700;
+  font-size:0.9rem;
+  color:var(--texte);
+}
+.bouton-valider{
+  background:var(--accent);
+  color:#fff;
+  border:none;
+  padding:7px 14px;
+  border-radius:10px;
+  font-size:0.72rem;
+  cursor:pointer;
+  font-weight:600;
+  font-family:'Poppins',sans-serif;
+}
+.bouton-valider:active{ opacity:0.85; }
+.bouton-decocher{
+  background:transparent;
+  color:var(--texte-doux);
+  border:2px solid var(--ombre-c1);
+  padding:6px 12px;
+  border-radius:10px;
+  font-size:0.72rem;
+  cursor:pointer;
+  font-weight:600;
+  font-family:'Poppins',sans-serif;
+  margin-left:6px;
+}
+
+/* --- Avatars --- */
+.avatar{
+  flex-shrink:0;
+  border-radius:50%;
+  overflow:hidden;
+  background:var(--accent-doux);
+  color:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;
+  font-family:'Poppins',sans-serif;
+}
+.avatar img{ width:100%; height:100%; object-fit:cover; }
+.avatar-nom{
+  width:44px;height:44px;font-size:1rem;
+}
+.carte-nom{ position:relative; }
+.carte-nom .avatar-nom{ margin:0 auto 10px; }
+.entete-personne{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.avatar-grand{
+  width:56px;height:56px;font-size:1.3rem;
+  cursor:pointer;
+  position:relative;
+}
+.badge-camera{
+  position:absolute;
+  bottom:-2px; right:-2px;
+  background:var(--fond);
+  box-shadow:var(--ombre-ext-sm);
+  border-radius:50%;
+  width:22px;height:22px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--accent);
+}
+.badge-camera svg{ width:12px;height:12px; }
+
+/* --- Sélecteur de thème --- */
+.selecteur-theme{
+  display:flex;
+  gap:12px;
+  margin-bottom:22px;
+  justify-content:center;
+}
+.pastille-theme{
+  width:32px;height:32px;
+  border-radius:50%;
+  cursor:pointer;
+  box-shadow:var(--ombre-ext-sm);
+  border:2px solid transparent;
+  transition:transform .15s ease;
+}
+.pastille-theme.actif{
+  border-color:var(--texte);
+  transform:scale(1.12);
+}
+
+/* --- Bouton d'édition profil --- */
+.conteneur-edition-profil{
+  position:fixed;
+  right:22px;
+  bottom:22px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:10px;
+  z-index:900;
+}
+.options-edition-profil{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.bouton-option-edition,
+.bouton-edition-profil{
+  width:56px;
+  height:56px;
+  border:none;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1.2rem;
+  cursor:pointer;
+  box-shadow:var(--ombre-ext);
+}
+.bouton-option-edition{
+  background:var(--fond);
+  color:var(--accent);
+}
+.bouton-edition-profil{
+  background:var(--accent);
+  color:#fff;
+}
+.bouton-option-edition:active,
+.bouton-edition-profil:active{
+  box-shadow:var(--ombre-int);
+  transform:translateY(1px);
+}
+.bouton-edition-profil.ouvert{
+  background:var(--danger);
+}
+.bouton-option-edition svg,
+.bouton-edition-profil svg{
+  width:22px;
+  height:22px;
+}
+
+/* --- Modale de confirmation --- */
+.fond-modale{
+  position:fixed; inset:0;
+  background:rgba(20,22,28,0.45);
+  display:flex; align-items:center; justify-content:center;
+  z-index:1000;
+  padding:20px;
+}
+.boite-modale{
+  background:var(--fond);
+  border-radius:var(--radius);
+  box-shadow:var(--ombre-ext);
+  padding:28px 24px;
+  max-width:340px;
+  width:100%;
+  text-align:center;
+}
+.boite-modale .icone-modale{
+  font-size:2rem;
+  margin-bottom:10px;
+}
+.boite-modale p{
+  margin:0 0 22px;
+  font-size:0.95rem;
+  color:var(--texte);
+  line-height:1.5;
+}
+.boite-modale p strong{ color:var(--accent); }
+.boutons-modale{
+  display:flex;
+  gap:12px;
+}
+.boutons-modale button{
+  flex:1;
+  padding:12px 0;
+  border:none;
+  border-radius:12px;
+  font-family:'Poppins',sans-serif;
+  font-size:0.85rem;
+  font-weight:600;
+  cursor:pointer;
+}
+.btn-annuler{
+  background:var(--fond);
+  color:var(--texte-doux);
+  box-shadow:var(--ombre-ext-sm);
+}
+.btn-annuler:active{ box-shadow:var(--ombre-int); }
+.btn-confirmer{
+  background:var(--accent);
+  color:#fff;
+}
+.btn-confirmer:active{ opacity:0.85; }
+
+/* --- Panneau de notifications (parents) --- */
+.options-notif{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.option-notif{
+  padding:12px 14px;
+  border-radius:12px;
+  border:2px solid var(--ombre-c1);
+  background:var(--fond);
+  color:var(--texte);
+  font-family:'Poppins',sans-serif;
+  font-size:0.85rem;
+  font-weight:500;
+  text-align:left;
+  cursor:pointer;
+}
+.option-notif.actif{
+  border-color:var(--accent);
+  color:var(--accent);
+  font-weight:700;
+  box-shadow:var(--ombre-int);
+}
+.champ-heure{
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:2px solid var(--ombre-c1);
+  background:var(--fond);
+  color:var(--texte);
+  font-family:'Poppins',sans-serif;
+  font-size:0.9rem;
+}
+
+/* --- Menu de personnalisation : rangée de thèmes dans le FAB --- */
+.options-edition-profil .selecteur-theme{
+  margin-bottom:0;
+  background:var(--fond);
+  box-shadow:var(--ombre-ext);
+  border-radius:20px;
+  padding:10px 14px;
+}
+</style>
+
+<script>
+/* ============================================================
+   INITIALISATION
+   ============================================================ */
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
+const DOC_REF = db.collection("carnet_maison").doc("etat_taches");
+
+const JOURS_SEMAINE = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+
+let etatCourant = { completions: {}, profils: {} }; // synchronisé avec Firestore
+let personneActive = null;             // clé de PERSONNES
+let pinSaisi = "";
+let dateAffichee = new Date();
+let vueActuelle = "login"; // login | pin | taches
+let editionProfilOuverte = false;
+
+/* ---- Écoute en temps réel de Firestore ---- */
+DOC_REF.onSnapshot((snap) => {
+  if (snap.exists) {
+    etatCourant = snap.data();
+    if(!etatCourant.completions) etatCourant.completions = {};
+    if(!etatCourant.profils) etatCourant.profils = {};
+  } else {
+    etatCourant = { completions: {}, profils: {} };
+    DOC_REF.set(etatCourant);
+  }
+  rendre();
+  verifierDigestQuotidien();
+}, (err) => {
+  console.error("Erreur Firestore :", err);
+});
+
+/* ---- Utilitaires date ---- */
+function formatDateCle(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function nomJour(d){ return JOURS_SEMAINE[d.getDay()]; }
+function texteDateLisible(d){
+  const jourNom = d.toLocaleDateString('fr-FR', { weekday:'long' });
+  const reste = d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+  return { jourNom, reste };
+}
+
+/* ---- Clé de complétion unique ---- */
+function cleCompletion(personneId, dateCle, index){
+  return `${dateCle}_${personneId}_${index}`;
+}
+
+/* ---- Profils (thème + photo) ---- */
+function obtenirProfil(personneId){
+  return (etatCourant.profils && etatCourant.profils[personneId]) || {};
+}
+
+function obtenirMetaPersonne(personneId){
+  // Une photo envoyée depuis l'app (Firebase) prend le dessus sur l'image du dépôt.
+  const profil = obtenirProfil(personneId);
+  const img = IMAGES_PERSONNES[personneId] || {};
+  return {
+    avatar: profil.photo || img.icone || "",
+    banner: profil.banner || img.banniere || ""
+  };
+}
+
+function rendreAvatar(personneId, classe){
+  const profil = obtenirProfil(personneId);
+  const nom = PERSONNES[personneId] ? PERSONNES[personneId].nom : "?";
+  const initiale = nom.charAt(0).toUpperCase();
+  const image = profil.photo || obtenirMetaPersonne(personneId).avatar;
+  if(image){
+    return `<div class="avatar ${classe}"><img src="${image}" alt="${nom}" onerror="this.style.display='none'; this.parentElement.textContent='${initiale}';"></div>`;
+  }
+  return `<div class="avatar ${classe}">${initiale}</div>`;
+}
+
+function rendreAvatarEditable(personneId){
+  const interieur = rendreAvatar(personneId, "avatar-grand").replace('class="avatar avatar-grand"', 'class="avatar avatar-grand" onclick="declencherChangementPhoto()"');
+  return `<div style="position:relative;display:inline-block;">
+      ${interieur}
+      <div class="badge-camera">${ICONES.camera}</div>
+    </div>`;
+}
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+function ouvrirEcranPin(id){
+  personneActive = id;
+  pinSaisi = "";
+  vueActuelle = "pin";
+  rendre();
+}
+
+function retourLogin(){
+  personneActive = null;
+  pinSaisi = "";
+  vueActuelle = "login";
+  appliquerTheme("bleu");
+  rendre();
+}
+
+function saisirChiffre(chiffre){
+  if(pinSaisi.length>=4) return;
+  pinSaisi += chiffre;
+  if(pinSaisi.length===4){
+    if(pinSaisi === PERSONNES[personneActive].pin){
+      vueActuelle = "taches";
+      dateAffichee = new Date();
+      appliquerTheme(obtenirProfil(personneActive).theme || "bleu");
+      setTimeout(rendre, 120);
+    } else {
+      setTimeout(()=>{ pinSaisi=""; rendre(); document.getElementById("erreur-pin").textContent = PERSONNES[personneActive].horsConfig ? "Fichier de configuration introuvable (config/" + personneActive + ".json)." : "Code incorrect, réessaie."; }, 250);
+    }
+  }
+  rendre();
+}
+
+function effacerChiffre(){
+  pinSaisi = pinSaisi.slice(0,-1);
+  rendre();
+}
+
+function changerJour(delta){
+  dateAffichee = new Date(dateAffichee);
+  dateAffichee.setDate(dateAffichee.getDate()+delta);
+  rendre();
+}
+
+function allerAujourdhui(){
+  dateAffichee = new Date();
+  rendre();
+}
+
+let enTraitement = new Set(); // empêche un double-clic d'envoyer 2x la même action
+let actionEnAttente = null;   // {personneId, index, texte} en attente de confirmation dans la modale
+
+function toggleTache(personneId, index){
+  demanderConfirmation(personneId, index);
+}
+
+function demanderConfirmation(personneId, index){
+  const jour = nomJour(dateAffichee);
+  const texte = TACHES[personneId][jour][index];
+  actionEnAttente = { personneId, index, texte };
+  document.getElementById("texte-modale").innerHTML =
+    `Confirmer que la tâche                   <strong>${texte}</strong> est terminée ?`;
+  document.getElementById("fond-modale").style.display = "flex";
+}
+
+function annulerAction(){
+  actionEnAttente = null;
+  document.getElementById("fond-modale").style.display = "none";
+}
+
+function confirmerAction(){
+  if(!actionEnAttente) return;
+  const { personneId, index } = actionEnAttente;
+  document.getElementById("fond-modale").style.display = "none";
+  actionEnAttente = null;
+  marquerTacheFaite(personneId, index);
+}
+
+async function marquerTacheFaite(personneId, index){
+  const dateCle = formatDateCle(dateAffichee);
+  const cle = cleCompletion(personneId, dateCle, index);
+
+  // Verrou anti double-clic / double-tap
+  if(enTraitement.has(cle)) return;
+  enTraitement.add(cle);
+
+  const nouvelEtat = { ...etatCourant, completions: { ...etatCourant.completions } };
+  nouvelEtat.completions[cle] = {
+    fait:true,
+    valide:false,
+    par: PERSONNES[personneId].nom,
+    horodatage: new Date().toISOString()
+  };
+
+  // Mise à jour optimiste immédiate (locale)
+  etatCourant = nouvelEtat;
+  rendre();
+
+  if(PERSONNES[personneId].type === "enfant"){
+    const nomTache = TACHES[personneId][nomJour(dateAffichee)][index];
+    notifierParents(PERSONNES[personneId].nom, nomTache);
+  }
+
+  try{
+    await DOC_REF.set(nouvelEtat);
+  }catch(e){
+    console.error("Erreur d'écriture Firestore:", e);
+    alert("Impossible de synchroniser la tâche. Vérifie ta connexion internet.");
+  } finally {
+    enTraitement.delete(cle);
+  }
+}
+
+/* ---- Réservé aux parents : décocher une tâche (annuler une complétion) ---- */
+async function decocherTache(cle){
+  const nouvelEtat = { ...etatCourant, completions: { ...etatCourant.completions } };
+  delete nouvelEtat.completions[cle];
+  etatCourant = nouvelEtat;
+  rendre();
+  try{
+    await DOC_REF.set(nouvelEtat);
+  }catch(e){
+    console.error("Erreur d'écriture Firestore:", e);
+  }
+}
+
+async function validerTache(cle){
+  const nouvelEtat = { ...etatCourant, completions: { ...etatCourant.completions } };
+  if(nouvelEtat.completions[cle]){
+    nouvelEtat.completions[cle] = { ...nouvelEtat.completions[cle], valide:true };
+    try{
+      await DOC_REF.set(nouvelEtat);
+    }catch(e){
+      console.error(e);
+    }
+  }
+}
+
+/* ---- Choix de thème ---- */
+async function choisirTheme(themeId){
+  appliquerTheme(themeId);
+  const nouvelEtat = { ...etatCourant, profils: { ...etatCourant.profils } };
+  nouvelEtat.profils[personneActive] = { ...obtenirProfil(personneActive), theme: themeId };
+  etatCourant = nouvelEtat;
+  rendre();
+  try{
+    await DOC_REF.set(nouvelEtat);
+  }catch(e){
+    console.error("Erreur de sauvegarde du thème:", e);
+  }
+}
+
+/* ============================================================
+   PRÉFÉRENCES DE NOTIFICATION (parents seulement)
+   Chaque parent choisit : courriel à chaque tâche complétée (immédiat)
+   ou un seul résumé par jour à une heure choisie.
+   Stocké dans etatCourant.profils[id].notifications
+   ============================================================ */
+function obtenirNotifPref(personneId){
+  const profil = obtenirProfil(personneId);
+  return profil.notifications || { mode: "immediat", heure: "18:00" };
+}
+
+function construireContenuNotif(mode, heure){
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:1.05rem;margin:0;">Notifications par courriel</h3>
+      <button type="button" onclick="fermerParametresNotifications()" style="background:none;border:none;cursor:pointer;color:var(--texte-doux);width:22px;height:22px;padding:0;">${ICONES.fermer}</button>
+    </div>
+    <div class="options-notif">
+      <button type="button" class="option-notif ${mode==='immediat'?'actif':''}" onclick="choisirModeNotif('immediat')">
+        À chaque tâche complétée
+      </button>
+      <button type="button" class="option-notif ${mode==='quotidien'?'actif':''}" onclick="choisirModeNotif('quotidien')">
+        Un résumé, une fois par jour
+      </button>
+    </div>
+    <div id="champ-heure-notif" style="margin-top:14px; ${mode==='quotidien'?'':'display:none;'}">
+      <label style="font-size:0.85rem;color:var(--texte-doux);display:block;margin-bottom:6px;">Heure du résumé</label>
+      <input type="time" id="input-heure-notif" value="${heure}" class="champ-heure">
+    </div>
+    <button class="btn-confirmer" style="width:100%;margin-top:20px;" onclick="enregistrerParametresNotifications()">Enregistrer</button>
+  `;
+}
+
+function ouvrirParametresNotifications(){
+  if(!personneActive || PERSONNES[personneActive].type !== "parent") return;
+  editionProfilOuverte = false;
+  rendre();
+  const pref = obtenirNotifPref(personneActive);
+  const boite = document.getElementById("boite-notifications");
+  boite.dataset.modeChoisi = pref.mode;
+  boite.innerHTML = construireContenuNotif(pref.mode, pref.heure);
+  document.getElementById("fond-modale-notifications").style.display = "flex";
+}
+
+function choisirModeNotif(mode){
+  const boite = document.getElementById("boite-notifications");
+  const heureInput = document.getElementById("input-heure-notif");
+  const heureActuelle = (heureInput && heureInput.value) ? heureInput.value : (obtenirNotifPref(personneActive).heure || "18:00");
+  boite.dataset.modeChoisi = mode;
+  boite.innerHTML = construireContenuNotif(mode, heureActuelle);
+}
+
+function fermerParametresNotifications(){
+  document.getElementById("fond-modale-notifications").style.display = "none";
+}
+
+async function enregistrerParametresNotifications(){
+  const boite = document.getElementById("boite-notifications");
+  const modeChoisi = boite.dataset.modeChoisi || obtenirNotifPref(personneActive).mode;
+  const heureInput = document.getElementById("input-heure-notif");
+  const heureChoisie = (heureInput && heureInput.value) ? heureInput.value : "18:00";
+
+  const nouvelEtat = { ...etatCourant, profils: { ...etatCourant.profils } };
+  nouvelEtat.profils[personneActive] = {
+    ...obtenirProfil(personneActive),
+    notifications: { mode: modeChoisi, heure: heureChoisie }
+  };
+  etatCourant = nouvelEtat;
+  fermerParametresNotifications();
+  rendre();
+  try{
+    await DOC_REF.set(nouvelEtat);
+  }catch(e){
+    console.error("Erreur de sauvegarde des préférences de notification:", e);
+  }
+}
+
+/* ---- Photo de profil (prise ou choisie depuis la galerie) ---- */
+function declencherChangementPhoto(){
+  document.getElementById("input-photo").click();
+}
+
+function basculerEditionProfil(){
+  editionProfilOuverte = !editionProfilOuverte;
+  rendre();
+}
+
+/* Choisir un thème depuis le menu ne ferme plus le menu (permet de comparer) */
+function choisirThemeMenu(themeId){
+  choisirTheme(themeId);
+}
+
+function redimensionnerImage(fichier, tailleMax){
+  return new Promise((resolve, reject)=>{
+    const lecteur = new FileReader();
+    lecteur.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let { width, height } = img;
+        if(width > height){
+          if(width > tailleMax){ height *= tailleMax/width; width = tailleMax; }
+        } else {
+          if(height > tailleMax){ width *= tailleMax/height; height = tailleMax; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob)=> resolve(blob), "image/jpeg", 0.85);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    lecteur.onerror = reject;
+    lecteur.readAsDataURL(fichier);
+  });
+}
+
+async function gererFichierPhoto(event){
+  const fichier = event.target.files[0];
+  event.target.value = ""; // permet de reprendre la même photo une prochaine fois
+  if(!fichier || !personneActive) return;
+
+  try{
+    const blob = await redimensionnerImage(fichier, 400);
+    const cheminPhoto = `profils/${personneActive}.jpg`;
+    const ref = storage.ref().child(cheminPhoto);
+    await ref.put(blob, { contentType: "image/jpeg" });
+    const url = await ref.getDownloadURL();
+
+    const nouvelEtat = { ...etatCourant, profils: { ...etatCourant.profils } };
+    nouvelEtat.profils[personneActive] = {
+      ...obtenirProfil(personneActive),
+      photo: url,
+      photoPath: cheminPhoto
+    };
+    etatCourant = nouvelEtat;
+    rendre();
+    await DOC_REF.set(nouvelEtat);
+  }catch(e){
+    console.error("Erreur d'upload de la photo:", e);
+    alert("Impossible d'envoyer la photo. Vérifie ta connexion internet.");
+  }
+}
+
+/* ============================================================
+   ENVOI DE COURRIELS — file d'attente + préférences par parent
+   EmailJS (plan gratuit) limite à 1 requête toutes les 5 secondes.
+   IMPORTANT : le champ "To Email" du template EmailJS doit utiliser
+   la variable {{to_email}} (et non des adresses codées en dur),
+   car chaque parent peut maintenant recevoir des courriels
+   différents selon ses préférences.
+   ============================================================ */
+const DELAI_ENTRE_COURRIELS_MS = 5200; // légère marge au-dessus de 5s
+let fileCourriels = [];
+let fileEnCours = false;
+
+function notifierParents(nomEnfant, nomTache){
+  Object.entries(PERSONNES).forEach(([id, p])=>{
+    if(p.type !== "parent") return;
+    const email = obtenirEmailParent(id, p);
+    if(!email){
+      console.warn(`Aucun courriel trouvé pour le parent "${id}" — notification ignorée. Ajoute "email" dans config/${id}.json.`);
+      return;
+    }
+    const pref = obtenirNotifPref(id);
+    if(pref.mode === "quotidien") return; // ce parent recevra un résumé plus tard, pas un courriel immédiat
+    fileCourriels.push({ email, nomEnfant, nomTache });
+  });
+  traiterFileCourriels();
+}
+
+function traiterFileCourriels(){
+  if(fileEnCours) return;
+  fileEnCours = true;
+
+  const envoyerSuivant = () => {
+    const item = fileCourriels.shift();
+    if(!item){ fileEnCours = false; return; }
+
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email: item.email,
+      child_name: item.nomEnfant,
+      task_name: item.nomTache,
+      message: `${item.nomEnfant} a terminé "${item.nomTache}". Veuillez vérifier puis valider la complétion.`
+    }).then(()=>{
+      console.log(`Courriel envoyé à ${item.email} pour la tâche "${item.nomTache}".`);
+    }).catch((err)=> console.error("Erreur EmailJS:", err));
+
+    if(fileCourriels.length > 0){
+      setTimeout(envoyerSuivant, DELAI_ENTRE_COURRIELS_MS);
+    } else {
+      fileEnCours = false;
+    }
+  };
+
+  envoyerSuivant();
+}
+
+/* ============================================================
+   RÉSUMÉ QUOTIDIEN (parents ayant choisi "une fois par jour")
+   Approche "simple" : vérifiée à chaque chargement de l'app et à
+   intervalle régulier tant que l'app reste ouverte. Si personne
+   n'ouvre l'app autour de l'heure choisie, le résumé de ce jour-là
+   peut être manqué (limite d'un site statique sans serveur).
+   ============================================================ */
+let digestEnCours = new Set();
+
+function verifierDigestQuotidien(){
+  if(Object.keys(PERSONNES).length === 0) return;
+  const maintenant = new Date();
+  const heureCourante = String(maintenant.getHours()).padStart(2,"0") + ":" + String(maintenant.getMinutes()).padStart(2,"0");
+  const dateCle = formatDateCle(maintenant);
+
+  Object.entries(PERSONNES).forEach(([id, p])=>{
+    if(p.type !== "parent") return;
+    const email = obtenirEmailParent(id, p);
+    if(!email) return;
+    const pref = obtenirNotifPref(id);
+    if(pref.mode !== "quotidien") return;
+
+    const cleDigest = `${dateCle}_${id}`;
+    if(digestEnCours.has(cleDigest)) return;
+    if(etatCourant.digestEnvoye && etatCourant.digestEnvoye[cleDigest]) return;
+    if(heureCourante < pref.heure) return;
+
+    const auMoinsUnePendante = Object.entries(etatCourant.completions || {}).some(([cle, info])=>
+      cle.startsWith(dateCle + "_") && info.fait && !info.valide
+    );
+    if(!auMoinsUnePendante) return;
+
+    digestEnCours.add(cleDigest);
+    fileCourriels.push({ email, nomEnfant: "des enfants", nomTache: "Veuillez valider les tâches de la journée" });
+    traiterFileCourriels();
+    marquerDigestEnvoye(cleDigest);
+  });
+}
+
+async function marquerDigestEnvoye(cleDigest){
+  const nouvelEtat = { ...etatCourant, digestEnvoye: { ...(etatCourant.digestEnvoye||{}), [cleDigest]: true } };
+  etatCourant = nouvelEtat;
+  try{
+    await DOC_REF.set(nouvelEtat);
+  }catch(e){
+    console.error("Erreur lors du marquage du résumé quotidien:", e);
+  } finally {
+    digestEnCours.delete(cleDigest);
+  }
+}
+
+/* ============================================================
+   RENDU
+   ============================================================ */
+/* ============================================================
+   CARROUSEL DE SÉLECTION — style « menu Switch Sports »
+   Physique : on glisse au doigt / à la souris (la carte suit),
+   on relâche = inertie (lancer), puis un ressort aimante la
+   carte la plus proche avec un petit rebond. Effet élastique
+   aux deux extrémités. Un tap sur une carte la centre ; un tap
+   sur la carte centrale ouvre l'écran du code.
+   Aussi : flèches ← → + Entrée, et molette / pavé tactile.
+   ============================================================ */
+const CAR = {
+  pos: null,        // position fractionnaire, en « index de carte »
+  vel: 0,           // vitesse (cartes / seconde)
+  cible: null,      // index visé par le ressort (null = carte la plus proche)
+  drag: false, id: null, moved: false,
+  startX: 0, startPos: 0, prevPos: 0, lastT: 0,
+  carteDown: null,
+  raf: null, tPrev: 0,
+  prete: false, derniereRoue: 0
+};
+
+function carMesures(){
+  const el = document.querySelector('.carousel-famille');
+  if(!el) return null;
+  const W = el.clientWidth || window.innerWidth;
+  const cw = Math.max(150, Math.min(260, W * 0.31));
+  if(el.dataset.cw !== String(Math.round(cw))){
+    el.dataset.cw = String(Math.round(cw));
+    el.style.setProperty('--cw', cw + 'px');
+  }
+  return { el, cw, s1: cw * 0.91 + 14, s2: cw * 0.6 };
+}
+
+function carX(ds, m){
+  const d = Math.abs(ds);
+  const f = d <= 1 ? d * m.s1 : m.s1 + (d - 1) * m.s2;
+  return ds < 0 ? -f : f;
+}
+
+/* Couleur de la carte = couleur d'accent du thème choisi par la personne (stocké dans Firebase :
+   profils[id].theme). Centre = couleur pleine ; plus la carte s'éloigne, plus elle s'éclaircit. */
+function carHexVersRgb(hex){
+  const h = String(hex).replace('#', '');
+  return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16));
+}
+
+function carCouleur(personneId, d){
+  const theme = THEMES[obtenirProfil(personneId).theme] || THEMES.bleu;
+  const base = carHexVersRgb(theme.variables["--accent"]);
+  const t = d <= 1 ? 0.22 * d : Math.min(0.47, 0.22 + 0.25 * (d - 1));
+  return `rgb(${base.map(v => Math.round(v + (255 - v) * t)).join(',')})`;
+}
+
+/* Écart signé entre la carte i et la position du carrousel.
+   En boucle (3 personnes ou plus) il est ramené dans ]-n/2 ; n/2] : le carrousel tourne sans fin. */
+function carEcart(i, pos, n){
+  let ds = i - pos;
+  if(n >= 3){
+    ds = ((ds % n) + n) % n;
+    if(ds > n / 2) ds -= n;
+  }
+  return ds;
+}
+
+function carModulo(v, n){
+  return n ? ((v % n) + n) % n : 0;
+}
+
+function carElastique(v, n){
+  if(n >= 3) return v;               // boucle infinie : pas de butée
+  const max = n - 1;
+  if(v < 0) return v * 0.35;
+  if(v > max) return max + (v - max) * 0.35;
+  return v;
+}
+
+function carAppliquer(){
+  if(CAR.pos === null) return;
+  const m = carMesures();
+  if(!m) return;
+  const n = obtenirIdsPersonnes().length;
+  const demi = n / 2;
+  const larg = Math.min(1, Math.max(0.3, demi - 1));
+  m.el.querySelectorAll('.famille-card').forEach(carte => {
+    const i = Number(carte.dataset.index);
+    const ds = carEcart(i, CAR.pos, n);
+    const d = Math.abs(ds);
+    const x = carX(ds, m);
+    const echelle = d <= 1 ? 1 - 0.18 * d : Math.max(0.6, 0.82 - 0.11 * (d - 1));
+    const lift = d <= 1 ? 8 * d : 8 + Math.min(d - 1, 1.5) * 16;
+    // en boucle, la carte s'efface avant de repasser de l'autre côté du cercle
+    const opa = n >= 3 ? Math.max(0, Math.min(1, (demi - d) / larg))
+                       : Math.max(0, Math.min(1, 3.6 - d));
+    const st = carte.style;
+    st.transform = `translate3d(${x.toFixed(2)}px,${(-lift).toFixed(2)}px,0) scale(${echelle.toFixed(4)})`;
+    st.zIndex = String(100 - Math.round(d * 10));
+    st.background = carCouleur(carte.dataset.id, d);
+    st.opacity = opa.toFixed(3);
+    st.visibility = opa <= 0.01 ? 'hidden' : 'visible';
+  });
+  carFond(n);
+}
+
+/* Fond : la bannière de la personne la plus proche du centre est opaque ; la voisine
+   apparaît en fondu au fur et à mesure qu'on glisse (mélange linéaire, sans « trou »). */
+function carFond(n){
+  const calques = document.querySelectorAll('.fond-calque');
+  if(!calques.length) return;
+  const proche = carModulo(Math.round(CAR.pos), n);
+  calques.forEach(c => {
+    const i = Number(c.dataset.index);
+    if(i === proche){
+      c.style.opacity = '1';
+      c.style.zIndex = '1';
+    } else {
+      const d = Math.abs(carEcart(i, CAR.pos, n));
+      c.style.opacity = Math.max(0, 1 - d).toFixed(3);
+      c.style.zIndex = '2';
+    }
+  });
+}
+
+function carDemarrer(){
+  if(CAR.raf) return;
+  CAR.tPrev = performance.now();
+  CAR.raf = requestAnimationFrame(carBoucle);
+}
+
+function carBoucle(t){
+  CAR.raf = null;
+  if(vueActuelle !== "login") return;
+  const n = obtenirIdsPersonnes().length;
+  const dt = Math.min((t - CAR.tPrev) / 1000, 0.05);
+  CAR.tPrev = t;
+
+  if(!CAR.drag && n){
+    const cible = CAR.cible !== null ? CAR.cible
+      : (n >= 3 ? Math.round(CAR.pos) : Math.max(0, Math.min(n - 1, Math.round(CAR.pos))));
+    const k = 190, c = 20;              // ressort légèrement sous-amorti = petit rebond
+    let reste = dt;
+    while(reste > 0){
+      const h = Math.min(1 / 240, reste);
+      reste -= h;
+      CAR.vel += (k * (cible - CAR.pos) - c * CAR.vel) * h;
+      CAR.pos += CAR.vel * h;
+    }
+    if(Math.abs(cible - CAR.pos) < 0.0008 && Math.abs(CAR.vel) < 0.01){
+      CAR.pos = n >= 3 ? carModulo(cible, n) : cible; // au repos : on ramène la position dans [0, n[
+      CAR.vel = 0; CAR.cible = null;
+      carAppliquer();
+      return; // la boucle s'arrête
+    }
+  }
+  carAppliquer();
+  CAR.raf = requestAnimationFrame(carBoucle);
+}
+
+function carAllerA(index){
+  const n = obtenirIdsPersonnes().length;
+  if(!n) return;
+  CAR.cible = n >= 3 ? index : Math.max(0, Math.min(n - 1, index));
+  carDemarrer();
+}
+
+function initialiserCarousel(){
+  if(CAR.prete) return;
+  CAR.prete = true;
+  const app = document.getElementById("app");
+
+  app.addEventListener('pointerdown', (e) => {
+    if(vueActuelle !== "login" || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if(!e.target.closest || !e.target.closest('.carousel-famille') || CAR.pos === null) return;
+    CAR.drag = true; CAR.moved = false; CAR.id = e.pointerId;
+    CAR.startX = e.clientX; CAR.startPos = CAR.pos; CAR.prevPos = CAR.pos;
+    CAR.lastT = performance.now(); CAR.vel = 0; CAR.cible = null;
+    CAR.carteDown = e.target.closest('.famille-card');
+    carDemarrer();
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    if(!CAR.drag || e.pointerId !== CAR.id) return;
+    const m = carMesures();
+    if(!m) return;
+    const n = obtenirIdsPersonnes().length;
+    const dx = e.clientX - CAR.startX;
+    if(Math.abs(dx) > 6) CAR.moved = true;
+    CAR.pos = carElastique(CAR.startPos - dx / m.s1, n);
+    const maintenant = performance.now();
+    const dt = Math.max((maintenant - CAR.lastT) / 1000, 0.008);
+    CAR.vel = CAR.vel * 0.5 + ((CAR.pos - CAR.prevPos) / dt) * 0.5;
+    CAR.prevPos = CAR.pos;
+    CAR.lastT = maintenant;
+    carDemarrer();
+  });
+
+  const relacher = (e) => {
+    if(!CAR.drag || e.pointerId !== CAR.id) return;
+    CAR.drag = false;
+    const n = obtenirIdsPersonnes().length;
+    const carte = CAR.carteDown;
+    CAR.carteDown = null;
+
+    if(!CAR.moved && e.type === 'pointerup' && carte){
+      const ds = carEcart(Number(carte.dataset.index), CAR.pos, n);
+      if(Math.abs(ds) < 0.5){
+        CAR.vel = 0; CAR.cible = null;
+        ouvrirEcranPin(carte.dataset.id);
+        return;
+      }
+      CAR.vel = 0;
+      carAllerA(Math.round(CAR.pos + ds)); // chemin le plus court vers la carte touchée
+      return;
+    }
+    if(performance.now() - CAR.lastT > 90) CAR.vel = 0; // main arrêtée avant de relâcher
+    const v = Math.max(-14, Math.min(14, CAR.vel));
+    carAllerA(Math.round(CAR.pos + v * 0.22));
+  };
+  window.addEventListener('pointerup', relacher);
+  window.addEventListener('pointercancel', relacher);
+
+  app.addEventListener('wheel', (e) => {
+    if(vueActuelle !== "login") return;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    const maintenant = performance.now();
+    if(Math.abs(delta) < 12 || maintenant - CAR.derniereRoue < 220) return;
+    CAR.derniereRoue = maintenant;
+    carAllerA(Math.round(CAR.pos) + (delta > 0 ? 1 : -1));
+  }, { passive: true });
+
+  document.addEventListener('keydown', (e) => {
+    if(vueActuelle !== "login" || CAR.pos === null) return;
+    const ids = obtenirIdsPersonnes();
+    if(e.key === 'ArrowRight') carAllerA(Math.round(CAR.pos) + 1);
+    else if(e.key === 'ArrowLeft') carAllerA(Math.round(CAR.pos) - 1);
+    else if(e.key === 'Enter' && ids.length) ouvrirEcranPin(ids[carModulo(Math.round(CAR.pos), ids.length)]);
+  });
+
+  window.addEventListener('resize', carAppliquer);
+}
+
+/* ---- Horloge de l'écran de sélection : « 14 : 51 » / « Samedi 14 Novembre » ---- */
+function texteHorlogeAccueil(d){
+  const maj = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const jour = d.toLocaleDateString('fr-FR', { weekday: 'long' });
+  const mois = d.toLocaleDateString('fr-FR', { month: 'long' });
+  return { heure: `${hh} : ${mm}`, date: `${maj(jour)} ${d.getDate()} ${maj(mois)}` };
+}
+
+function majHorlogeAccueil(){
+  if(vueActuelle !== "login") return;
+  const h = document.querySelector('.selection-header .heure');
+  const dt = document.querySelector('.selection-header .date');
+  if(!h || !dt) return;
+  const t = texteHorlogeAccueil(new Date());
+  if(h.textContent !== t.heure) h.textContent = t.heure;
+  if(dt.textContent !== t.date) dt.textContent = t.date;
+}
+
+function htmlAvatarCarte(image){
+  return image ? `<img src="${image}" alt="" draggable="false" onerror="this.remove()">` : '';
+}
+
+/* Met à jour les photos sans reconstruire l'écran (ne coupe pas un glissement en cours) */
+function majAvatarsAccueil(){
+  document.querySelectorAll('.famille-card').forEach(carte => {
+    const image = obtenirMetaPersonne(carte.dataset.id).avatar;
+    const zone = carte.querySelector('.carte-avatar');
+    if(!zone) return;
+    const actuelle = zone.querySelector('img');
+    if(image && (!actuelle || actuelle.getAttribute('src') !== image)){
+      zone.innerHTML = htmlAvatarCarte(image);
+    }
+  });
+  majFondAccueil();
+}
+
+/* Applique à chaque calque la bannière de sa personne (local ou Firebase) */
+function majFondAccueil(){
+  document.querySelectorAll('.fond-calque').forEach(c => {
+    const url = obtenirMetaPersonne(c.dataset.id).banner || '';
+    if(c.dataset.src === url) return;
+    c.dataset.src = url;
+    c.style.backgroundImage = url ? `url("${url.replace(/"/g, '%22')}")` : 'none';
+  });
+}
+
+function rendre(){
+  const app = document.getElementById("app");
+
+  if(vueActuelle === "login"){
+    const ids = obtenirIdsPersonnes();
+    const existant = app.querySelector('.ecran-selection');
+    if(existant && ids.length && existant.querySelectorAll('.famille-card').length === ids.length){
+      majAvatarsAccueil();
+      carAppliquer();
+      return;
+    }
+    if(CAR.pos === null && ids.length){
+      const martin = ids.indexOf("martin");
+      CAR.pos = martin >= 0 ? martin : 0;
+    }
+    if(CAR.pos !== null){
+      CAR.pos = ids.length >= 3 ? carModulo(CAR.pos, ids.length)
+                                : Math.max(0, Math.min(CAR.pos, Math.max(0, ids.length - 1)));
+    }
+    app.innerHTML = vueLogin();
+    majFondAccueil();
+    carAppliquer();
+  } else if(vueActuelle === "pin"){
+    app.innerHTML = vuePin();
+  } else if(vueActuelle === "taches"){
+    app.innerHTML = vueTaches();
+  }
+}
+
+function vueLogin(){
+  const ids = obtenirIdsPersonnes();
+  const cartes = ids.map((id, index) => {
+    const p = PERSONNES[id];
+    const image = obtenirMetaPersonne(id).avatar;
+    return `
+      <div class="famille-card" data-id="${id}" data-index="${index}">
+        <div class="carte-avatar">${htmlAvatarCarte(image)}</div>
+        <div class="famille-card__nom">${p.nom}</div>
+      </div>`;
+  }).join("");
+
+  const t = texteHorlogeAccueil(new Date());
+  return `
+    <div class="ecran-selection">
+      <div class="fond-accueil">${ids.map((id, index) => `<div class="fond-calque" data-id="${id}" data-index="${index}"></div>`).join("")}</div>
+      <div class="selection-header">
+        <span class="heure">${t.heure}</span>
+        <span class="date">${t.date}</span>
+      </div>
+      ${CONFIG_MANQUANTE.length ? `<div class="alerte-config">Fichiers config/*.json introuvables. Ouvre le site depuis un serveur (http://localhost ou GitHub Pages), pas en double-cliquant sur index.html.</div>` : ''}
+      <div class="carousel-famille">${cartes}</div>
+    </div>
+  `;
+}
+
+function vuePin(){
+  const points = [0,1,2,3].map(i=>
+    `<div class="pin-point ${i<pinSaisi.length?'rempli':''}"></div>`
+  ).join("");
+
+  const touches = ["1","2","3","4","5","6","7","8","9","","0","⌫"].map(t=>{
+    if(t==="") return `<div></div>`;
+    if(t==="⌫") return `<div class="touche effacer" onclick="effacerChiffre()">⌫</div>`;
+    return `<div class="touche" onclick="saisirChiffre('${t}')">${t}</div>`;
+  }).join("");
+
+  return `
+    <div class="ecran-pin">
+      <div class="retour" onclick="retourLogin()">← retour</div>
+      <h2>Bonjour ${PERSONNES[personneActive].nom}</h2>
+      <div class="sous-titre" style="font-size:0.8rem;color:var(--encre-douce);">Entre ton code à 4 chiffres</div>
+      <div class="pin-points">${points}</div>
+      <div class="pavé-numerique">${touches}</div>
+      <div class="erreur-pin" id="erreur-pin"></div>
+    </div>
+  `;
+}
+
+function vueTaches(){
+  const p = PERSONNES[personneActive];
+  const dateCle = formatDateCle(dateAffichee);
+  const jour = nomJour(dateAffichee);
+  const { jourNom, reste } = texteDateLisible(dateAffichee);
+
+  let contenuPrincipal = "";
+
+  if(p.type === "enfant"){
+    const taches = (TACHES[personneActive] && TACHES[personneActive][jour]) || [];
+    if(taches.length===0){
+      contenuPrincipal = `<div class="vide">Aucune tâche pour ${jourNom}. 🎉</div>`;
+    } else {
+      const lignes = taches.map((texte, index)=>{
+        const cle = cleCompletion(personneActive, dateCle, index);
+        const info = etatCourant.completions[cle];
+        const fait = !!(info && info.fait);
+        const valide = !!(info && info.valide);
+        let classeCase = "case";
+        let contenuCase = "";
+        if(valide){ classeCase += " valide"; contenuCase = "✓"; }
+        else if(fait){ classeCase += " fait"; contenuCase = "✓"; }
+
+        return `
+          <div class="tache" ${fait ? '' : `onclick="toggleTache('${personneActive}', ${index})"`}>
+            <div class="${classeCase}">${contenuCase}</div>
+            <div class="texte-tache ${fait?'fait':''}">${texte}</div>
+            ${fait && !valide ? '<div class="etiquette-attente">à valider</div>' : ''}
+          </div>
+        `;
+      }).join("");
+      contenuPrincipal = `<div class="liste-taches">${lignes}</div>`;
+    }
+  } else {
+    // Vue parent : voir toutes les tâches de tous les enfants pour le jour affiché + validation
+    contenuPrincipal = `<div class="section-titre">Tâches de la famille — ${jourNom}</div>`;
+    const enfants = Object.entries(PERSONNES).filter(([id,pp])=>pp.type==="enfant");
+    let blocs = "";
+    enfants.forEach(([id, pp])=>{
+      const taches = (TACHES[id] && TACHES[id][jour]) || [];
+      if(taches.length===0) return;
+      const lignes = taches.map((texte,index)=>{
+        const cle = cleCompletion(id, dateCle, index);
+        const info = etatCourant.completions[cle];
+        const fait = !!(info && info.fait);
+        const valide = !!(info && info.valide);
+        let classeCase="case";
+        let contenuCase="";
+        if(valide){classeCase+=" valide"; contenuCase="✓";}
+        else if(fait){classeCase+=" fait"; contenuCase="✓";}
+        return `
+          <div class="tache" style="cursor:default;">
+            <div class="${classeCase}">${contenuCase}</div>
+            <div class="texte-tache ${fait?'fait':''}">${texte}</div>
+            ${fait && !valide ? `<button class="bouton-valider" onclick="validerTache('${cle}')">Valider</button>` : ''}
+          </div>
+        `;
+      }).join("");
+      blocs += `<div class="carte-membre"><div class="titre-membre">${pp.nom}</div>${lignes}</div>`;
+    });
+    contenuPrincipal += blocs || `<div class="vide">Aucune tâche prévue aujourd'hui.</div>`;
+  }
+
+  const themeCourant = obtenirProfil(personneActive).theme || "bleu";
+  const pastillesTheme = Object.entries(THEMES).map(([id, t])=>
+    `<div class="pastille-theme ${themeCourant===id?'actif':''}" style="background:${t.swatch};" onclick="choisirThemeMenu('${id}')" title="${t.label}"></div>`
+  ).join("");
+
+  return `
+    <div class="ecran-taches">
+      <div class="barre-haut">
+        <div class="entete-personne">
+          ${rendreAvatarEditable(personneActive)}
+          <div class="bienvenue">Bonjour, ${p.nom}</div>
+        </div>
+        <div class="deconnexion" onclick="retourLogin()">Se déconnecter</div>
+      </div>
+
+      <div class="selecteur-jour">
+        <div class="fleche" onclick="changerJour(-1)">‹</div>
+        <div class="date-texte">
+          <div class="jour-nom">${jourNom}</div>
+          <div class="jour-num">${reste}</div>
+        </div>
+        <div class="fleche" onclick="changerJour(1)">›</div>
+      </div>
+      <button class="bouton-aujourdhui" onclick="allerAujourdhui()">Revenir à aujourd'hui</button>
+
+      ${contenuPrincipal}
+      <div class="conteneur-edition-profil">
+        <div class="options-edition-profil" ${editionProfilOuverte ? '' : 'style="display:none;"'}>
+          <div class="selecteur-theme">${pastillesTheme}</div>
+          ${p.type === "parent" ? `<button class="bouton-option-edition" onclick="ouvrirParametresNotifications()" title="Notifications">${ICONES.cloche}</button>` : ''}
+        </div>
+        <button class="bouton-edition-profil ${editionProfilOuverte ? 'ouvert' : ''}" onclick="basculerEditionProfil()" title="${editionProfilOuverte ? 'Fermer les options' : 'Modifier le profil'}">${editionProfilOuverte ? ICONES.fermer : ICONES.crayon}</button>
+      </div>
+    </div>
+  `;
+}
+
+async function demarrer(){
+  document.getElementById("app").innerHTML = `
+    <div class="vide" style="padding-top:120px;">Chargement du carnet…</div>
+  `;
+  await chargerConfigPersonnes();
+  initialiserCarousel();
+  rendre();
+  chargerImagesPersonnes(); // icon.png / banniere.png : s'affichent dès qu'elles sont chargées
+  verifierDigestQuotidien();
+  setInterval(verifierDigestQuotidien, 5 * 60 * 1000);
+  setInterval(majHorlogeAccueil, 1000); // revérifie toutes les 5 minutes
+}
+
+demarrer();
+</script>
+</body>
+</html>
