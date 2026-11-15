@@ -2044,16 +2044,62 @@ function cleCompletion(personneId, dateCle, index){
 }
 
 /* ---- Profils (thème + photo) ---- */
+const PHOTOS_LOCALES_KEY = "carnet_maison_photos";
+let PHOTOS_LOCALES = {};
+try{
+  const cachePhotos = JSON.parse(localStorage.getItem(PHOTOS_LOCALES_KEY) || "{}");
+  if(cachePhotos && typeof cachePhotos === "object" && !Array.isArray(cachePhotos)) PHOTOS_LOCALES = cachePhotos;
+}catch(e){
+  console.warn("Impossible de lire le cache local des photos:", e);
+}
+
+function obtenirPhotoLocale(personneId){
+  return PHOTOS_LOCALES[personneId] || "";
+}
+
+function sauvegarderPhotoLocale(personneId, dataUrl){
+  const photos = { ...PHOTOS_LOCALES, [personneId]: dataUrl };
+  PHOTOS_LOCALES = photos;
+  try{
+    localStorage.setItem(PHOTOS_LOCALES_KEY, JSON.stringify(photos));
+    return true;
+  }catch(e){
+    console.error("Impossible d'enregistrer la photo dans le cache local:", e);
+    return false;
+  }
+}
+
+function supprimerPhotoLocale(personneId){
+  const photos = { ...PHOTOS_LOCALES };
+  delete photos[personneId];
+  try{
+    if(Object.keys(photos).length) localStorage.setItem(PHOTOS_LOCALES_KEY, JSON.stringify(photos));
+    else localStorage.removeItem(PHOTOS_LOCALES_KEY);
+    PHOTOS_LOCALES = photos;
+  }catch(e){
+    console.warn("Impossible de supprimer la photo du cache local:", e);
+  }
+}
+
+function blobEnDataUrl(blob){
+  return new Promise((resolve, reject)=>{
+    const lecteur = new FileReader();
+    lecteur.onload = () => resolve(lecteur.result);
+    lecteur.onerror = () => reject(lecteur.error);
+    lecteur.readAsDataURL(blob);
+  });
+}
+
 function obtenirProfil(personneId){
   return (etatCourant.profils && etatCourant.profils[personneId]) || {};
 }
 
 function obtenirMetaPersonne(personneId){
-  // Une photo envoyée depuis l'app (Firebase) prend le dessus sur l'image du dépôt.
+  // Le cache local prend le dessus sur la photo Firebase pour ce navigateur.
   const profil = obtenirProfil(personneId);
   const img = IMAGES_PERSONNES[personneId] || {};
   return {
-    avatar: profil.photo || img.icone || "",
+    avatar: obtenirPhotoLocale(personneId) || profil.photo || img.icone || "",
     banner: profil.banner || img.banniere || ""
   };
 }
@@ -2062,7 +2108,7 @@ function rendreAvatar(personneId, classe){
   const profil = obtenirProfil(personneId);
   const nom = PERSONNES[personneId] ? PERSONNES[personneId].nom : "?";
   const initiale = nom.charAt(0).toUpperCase();
-  const image = profil.photo || obtenirMetaPersonne(personneId).avatar;
+  const image = obtenirMetaPersonne(personneId).avatar;
   if(image){
     return `<div class="avatar ${classe}"><img src="${image}" alt="${nom}" onerror="this.style.display='none'; this.parentElement.textContent='${initiale}';"></div>`;
   }
@@ -2443,25 +2489,40 @@ async function gererFichierPhoto(event){
   event.target.value = ""; // permet de reprendre la même photo une prochaine fois
   if(!fichier || !personneActive) return;
 
+  const personneId = personneActive;
+  let blob = null;
   try{
-    const blob = await redimensionnerImage(fichier, 400);
-    const cheminPhoto = `profils/${personneActive}.jpg`;
+    blob = await redimensionnerImage(fichier, 400);
+    if(!blob) throw new Error("La photo n'a pas pu être convertie en image JPEG.");
+    const cheminPhoto = `profils/${personneId}.jpg`;
     const ref = storage.ref().child(cheminPhoto);
     await ref.put(blob, { contentType: "image/jpeg" });
     const url = await ref.getDownloadURL();
 
     const nouvelEtat = { ...etatCourant, profils: { ...etatCourant.profils } };
-    nouvelEtat.profils[personneActive] = {
-      ...obtenirProfil(personneActive),
+    nouvelEtat.profils[personneId] = {
+      ...obtenirProfil(personneId),
       photo: url,
       photoPath: cheminPhoto
     };
-    etatCourant = nouvelEtat;
-    rendre();
     await DOC_REF.set(nouvelEtat);
+    etatCourant = nouvelEtat;
+    supprimerPhotoLocale(personneId);
+    rendre();
   }catch(e){
     console.error("Erreur d'upload de la photo:", e);
-    alert("Impossible d'envoyer la photo. Vérifie ta connexion internet.");
+    try{
+      if(!blob) throw e;
+      const dataUrl = await blobEnDataUrl(blob);
+      const sauvegardee = sauvegarderPhotoLocale(personneId, dataUrl);
+      rendre();
+      alert(sauvegardee
+        ? "Firebase n'a pas accepté la photo. Elle est enregistrée dans le cache de ce navigateur uniquement."
+        : "Firebase a refusé la photo et le navigateur n'a pas pu l'enregistrer dans son cache.");
+    }catch(erreurCache){
+      console.error("Erreur de sauvegarde locale de la photo:", erreurCache);
+      alert("Impossible d'envoyer ou de conserver la photo. Vérifie la connexion et l'espace de stockage du navigateur.");
+    }
   }
 }
 
@@ -3231,7 +3292,7 @@ function statsPersonne(personneId){
     faites, validees, valideesParMoi, leveTot, parfaites, serieMax,
     aTheme: profil.theme ? 1 : 0,
     themeNuit: profil.theme === "nuit" ? 1 : 0,
-    aPhoto: profil.photo ? 1 : 0
+    aPhoto: (profil.photo || obtenirPhotoLocale(personneId)) ? 1 : 0
   };
 }
 
