@@ -376,7 +376,18 @@ const ICONES = {
   </div>
 </div>
 
-<input type="file" id="input-photo" accept="image/*" capture="environment" style="display:none;" onchange="gererFichierPhoto(event)">
+<div id="fond-modale-photo" class="fond-modale" style="display:none;" onclick="if(event.target===this) fermerChoixPhoto()">
+  <div class="boite-modale" role="dialog" aria-modal="true" aria-labelledby="titre-choix-photo">
+    <h3 id="titre-choix-photo" style="font-size:1.05rem;margin-bottom:18px;">Changer la photo de profil</h3>
+    <div class="options-notif">
+      <button type="button" class="option-notif" onclick="choisirSourcePhoto('camera')">Prendre une photo</button>
+      <button type="button" class="option-notif" onclick="choisirSourcePhoto('import')">Importer une image</button>
+    </div>
+    <button type="button" class="btn-annuler" style="width:100%;margin-top:14px;" onclick="fermerChoixPhoto()">Annuler</button>
+  </div>
+</div>
+<input type="file" id="input-photo-camera" accept="image/*" capture="environment" style="display:none;" onchange="gererFichierPhoto(event)">
+<input type="file" id="input-photo-import" accept="image/*" style="display:none;" onchange="gererFichierPhoto(event)">
 
 <div id="fond-modale-notifications" class="fond-modale" style="display:none;">
   <div class="boite-modale" id="boite-notifications" data-mode-choisi="immediat">
@@ -2376,7 +2387,19 @@ async function enregistrerParametresNotifications(){
 
 /* ---- Photo de profil (prise ou choisie depuis la galerie) ---- */
 function declencherChangementPhoto(){
-  document.getElementById("input-photo").click();
+  if(personneActive) document.getElementById("fond-modale-photo").style.display = "flex";
+}
+
+function fermerChoixPhoto(){
+  document.getElementById("fond-modale-photo").style.display = "none";
+}
+
+function choisirSourcePhoto(source){
+  const idChamp = source === "camera" ? "input-photo-camera"
+    : source === "import" ? "input-photo-import" : null;
+  if(!idChamp) return;
+  fermerChoixPhoto();
+  document.getElementById(idChamp).click();
 }
 
 function basculerEditionProfil(){
