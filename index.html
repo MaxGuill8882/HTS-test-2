@@ -274,16 +274,47 @@ const THEMES = {
 const SURFACES_CLAIRES = {
   "--verre": "rgba(255,255,255,0.52)",
   "--verre-bouton": "rgba(255,255,255,0.7)",
-  "--ligne": "rgba(255,255,255,0.78)"
+  "--ligne": "rgba(255,255,255,0.78)",
+  "--verre-panneau": "rgba(255,255,255,0.74)"
 };
 const SURFACES_SOMBRES = {
   "--verre": "rgba(36,40,50,0.78)",
   "--verre-bouton": "rgba(51,59,82,0.92)",
-  "--ligne": "rgba(51,59,82,0.88)"
+  "--ligne": "rgba(51,59,82,0.88)",
+  "--verre-panneau": "rgba(30,34,44,0.84)"
 };
 /* Filtre posé sur l'image de fond quand un thème sombre est choisi (alpha : 0 = transparent, 1 = noir) */
 const FILTRE_SOMBRE = "rgba(8,10,18,0.55)";
 const FILTRE_AUCUN  = "rgba(8,10,18,0)";
+
+/* Liquid glass : les boutons prennent la teinte de la couleur d'accent du thème.
+   (calculé ici à partir de l'accent pour ne pas dépendre de color-mix) */
+function hexVersRgbTheme(hex){
+  const h = String(hex).replace('#', '');
+  return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16));
+}
+
+function varsVerre(theme){
+  const [r, g, b] = hexVersRgbTheme(theme.variables["--accent"]);
+  const [dr, dg, db] = hexVersRgbTheme(theme.variables["--danger"] || "#F0645A");
+  const sombre = !!theme.sombre;
+  const a = (alpha) => `rgba(${r},${g},${b},${alpha})`;
+  const d = (alpha) => `rgba(${dr},${dg},${db},${alpha})`;
+  const fonce = (k) => `rgb(${Math.round(r*k)},${Math.round(g*k)},${Math.round(b*k)})`;
+  return {
+    "--glass-a": a(sombre ? 0.46 : 0.46),
+    "--glass-b": a(sombre ? 0.15 : 0.16),
+    "--glass-fort-a": a(0.94),
+    "--glass-fort-b": a(0.64),
+    "--glass-ombre": a(sombre ? 0.5 : 0.42),
+    "--glass-danger-a": d(0.94),
+    "--glass-danger-b": d(0.64),
+    "--glass-danger-ombre": d(0.45),
+    "--glass-bord": sombre ? "rgba(255,255,255,0.26)" : "rgba(255,255,255,0.72)",
+    "--glass-reflet": sombre ? "rgba(255,255,255,0.42)" : "rgba(255,255,255,0.95)",
+    "--glass-texte": sombre ? "#EEF2FF" : fonce(0.42)
+  };
+}
 
 function appliquerTheme(themeId){
   const theme = THEMES[themeId] || THEMES.bleu;
@@ -291,7 +322,8 @@ function appliquerTheme(themeId){
   const variables = {
     ...theme.variables,
     ...(theme.sombre ? SURFACES_SOMBRES : SURFACES_CLAIRES),
-    "--filtre-fond": theme.sombre ? FILTRE_SOMBRE : FILTRE_AUCUN
+    "--filtre-fond": theme.sombre ? FILTRE_SOMBRE : FILTRE_AUCUN,
+    ...varsVerre(theme)
   };
   Object.entries(variables).forEach(([variable, valeur])=>{
     racine.style.setProperty(variable, valeur);
@@ -306,11 +338,18 @@ const ICONES = {
   fermer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>`,
   image: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>`,
   camera: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.5"/></svg>`,
+  trophee: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`,
   cloche: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`
 };
 </script>
 
 <div id="app"></div>
+
+<div id="toasts-succes" class="toasts-succes" role="status" aria-live="polite"></div>
+
+<div id="fond-succes" class="fond-modale" style="display:none;" onclick="if(event.target===this) fermerSucces()">
+  <div class="boite-succes" id="boite-succes"></div>
+</div>
 
 <div id="fond-modale" class="fond-modale" style="display:none;">
   <div class="boite-modale">
@@ -1195,6 +1234,609 @@ body::before{
   border-radius:20px;
   padding:10px 14px;
 }
+
+/* ============================================================
+   LIQUID GLASS — boutons en verre dépoli teinté par le thème
+   (les couleurs --glass-* sont calculées dans appliquerTheme)
+   ============================================================ */
+.deconnexion,
+.selecteur-jour .fleche,
+.bouton-aujourdhui,
+.bouton-succes,
+.touche,
+.ecran-pin .retour,
+.btn-annuler,
+.boutons-modale .btn-annuler,
+.option-notif,
+.bouton-option-edition,
+.bouton-fermer,
+.bouton-valider,
+.btn-confirmer,
+.boutons-modale .btn-confirmer,
+.bouton-edition-profil,
+.option-notif.actif{
+  position:relative;
+}
+.deconnexion,
+.selecteur-jour .fleche,
+.bouton-aujourdhui,
+.bouton-succes,
+.touche,
+.ecran-pin .retour,
+.btn-annuler,
+.boutons-modale .btn-annuler,
+.option-notif,
+.bouton-option-edition,
+.badge-camera,
+.bouton-fermer,
+.bouton-valider,
+.btn-confirmer,
+.boutons-modale .btn-confirmer,
+.bouton-edition-profil,
+.option-notif.actif{
+  background:linear-gradient(150deg, var(--glass-a), var(--glass-b));
+  -webkit-backdrop-filter:blur(16px) saturate(180%);
+  backdrop-filter:blur(16px) saturate(180%);
+  border:1px solid var(--glass-bord);
+  color:var(--glass-texte);
+  box-shadow:
+    inset 0 1.5px 0 var(--glass-reflet),
+    inset 0 -10px 16px -8px rgba(255,255,255,0.22),
+    inset 0 0 14px rgba(255,255,255,0.08),
+    0 12px 24px -10px var(--glass-ombre),
+    0 2px 8px rgba(15,23,42,0.12);
+  overflow:hidden;
+  isolation:isolate;
+  transition:transform .32s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease, filter .3s ease, background .3s ease;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none; -webkit-user-select:none;
+}
+/* reflet spéculaire du haut */
+.deconnexion::before,
+.selecteur-jour .fleche::before,
+.bouton-aujourdhui::before,
+.bouton-succes::before,
+.touche::before,
+.ecran-pin .retour::before,
+.btn-annuler::before,
+.boutons-modale .btn-annuler::before,
+.option-notif::before,
+.bouton-option-edition::before,
+.badge-camera::before,
+.bouton-fermer::before,
+.bouton-valider::before,
+.btn-confirmer::before,
+.boutons-modale .btn-confirmer::before,
+.bouton-edition-profil::before,
+.option-notif.actif::before{
+  content:"";
+  position:absolute;
+  left:7%; right:7%; top:0; height:46%;
+  border-radius:inherit;
+  background:linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0));
+  opacity:.8;
+  pointer-events:none;
+  z-index:-1;
+}
+/* éclat liquide qui suit le doigt / la souris (--mx, --my posés en JS) */
+.deconnexion::after,
+.selecteur-jour .fleche::after,
+.bouton-aujourdhui::after,
+.bouton-succes::after,
+.touche::after,
+.ecran-pin .retour::after,
+.btn-annuler::after,
+.boutons-modale .btn-annuler::after,
+.option-notif::after,
+.bouton-option-edition::after,
+.badge-camera::after,
+.bouton-fermer::after,
+.bouton-valider::after,
+.btn-confirmer::after,
+.boutons-modale .btn-confirmer::after,
+.bouton-edition-profil::after,
+.option-notif.actif::after{
+  content:"";
+  position:absolute; inset:0;
+  border-radius:inherit;
+  background:radial-gradient(110px 80px at var(--mx,50%) var(--my,0%), rgba(255,255,255,0.7), rgba(255,255,255,0) 70%);
+  opacity:0;
+  transition:opacity .3s ease;
+  pointer-events:none;
+  z-index:-1;
+}
+@media (hover:hover){
+.deconnexion:hover,
+.selecteur-jour .fleche:hover,
+.bouton-aujourdhui:hover,
+.bouton-succes:hover,
+.touche:hover,
+.ecran-pin .retour:hover,
+.btn-annuler:hover,
+.boutons-modale .btn-annuler:hover,
+.option-notif:hover,
+.bouton-option-edition:hover,
+.badge-camera:hover,
+.bouton-fermer:hover,
+.bouton-valider:hover,
+.btn-confirmer:hover,
+.boutons-modale .btn-confirmer:hover,
+.bouton-edition-profil:hover,
+.option-notif.actif:hover{
+  transform:translateY(-1px) scale(1.04);
+  filter:brightness(1.05) saturate(1.12);
+}
+.deconnexion:hover::after,
+.selecteur-jour .fleche:hover::after,
+.bouton-aujourdhui:hover::after,
+.bouton-succes:hover::after,
+.touche:hover::after,
+.ecran-pin .retour:hover::after,
+.btn-annuler:hover::after,
+.boutons-modale .btn-annuler:hover::after,
+.option-notif:hover::after,
+.bouton-option-edition:hover::after,
+.badge-camera:hover::after,
+.bouton-fermer:hover::after,
+.bouton-valider:hover::after,
+.btn-confirmer:hover::after,
+.boutons-modale .btn-confirmer:hover::after,
+.bouton-edition-profil:hover::after,
+.option-notif.actif:hover::after{ opacity:.9; }
+}
+.deconnexion:active,
+.selecteur-jour .fleche:active,
+.bouton-aujourdhui:active,
+.bouton-succes:active,
+.touche:active,
+.ecran-pin .retour:active,
+.btn-annuler:active,
+.boutons-modale .btn-annuler:active,
+.option-notif:active,
+.bouton-option-edition:active,
+.badge-camera:active,
+.bouton-fermer:active,
+.bouton-valider:active,
+.btn-confirmer:active,
+.boutons-modale .btn-confirmer:active,
+.bouton-edition-profil:active,
+.option-notif.actif:active{
+  transform:scale(.93);
+  filter:brightness(.98);
+  box-shadow:
+    inset 0 2px 8px rgba(0,0,0,0.16),
+    inset 0 1px 0 var(--glass-reflet),
+    0 4px 10px -6px var(--glass-ombre);
+}
+.deconnexion:active::after,
+.selecteur-jour .fleche:active::after,
+.bouton-aujourdhui:active::after,
+.bouton-succes:active::after,
+.touche:active::after,
+.ecran-pin .retour:active::after,
+.btn-annuler:active::after,
+.boutons-modale .btn-annuler:active::after,
+.option-notif:active::after,
+.bouton-option-edition:active::after,
+.badge-camera:active::after,
+.bouton-fermer:active::after,
+.bouton-valider:active::after,
+.btn-confirmer:active::after,
+.boutons-modale .btn-confirmer:active::after,
+.bouton-edition-profil:active::after,
+.option-notif.actif:active::after{ opacity:1; }
+
+/* boutons « forts » : action principale, verre très teinté + texte blanc */
+.bouton-valider,
+.btn-confirmer,
+.boutons-modale .btn-confirmer,
+.bouton-edition-profil,
+.option-notif.actif{
+  background:linear-gradient(150deg, var(--glass-fort-a), var(--glass-fort-b));
+  border-color:rgba(255,255,255,0.5);
+  color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,0.28);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,0.65),
+    inset 0 -10px 16px -8px rgba(0,0,0,0.2),
+    0 14px 26px -10px var(--glass-ombre),
+    0 2px 8px rgba(15,23,42,0.18);
+}
+.bouton-valider:active,
+.btn-confirmer:active,
+.boutons-modale .btn-confirmer:active,
+.bouton-edition-profil:active,
+.option-notif.actif:active{
+  box-shadow:
+    inset 0 2px 8px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    0 4px 10px -6px var(--glass-ombre);
+}
+.bouton-edition-profil.ouvert{
+  background:linear-gradient(150deg, var(--glass-danger-a), var(--glass-danger-b));
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,0.65),
+    inset 0 -10px 16px -8px rgba(0,0,0,0.2),
+    0 14px 26px -10px var(--glass-danger-ombre),
+    0 2px 8px rgba(15,23,42,0.18);
+}
+
+/* tailles et formes propres à chaque bouton */
+.deconnexion{ border-radius:999px; padding:9px 18px; font-weight:600; }
+.selecteur-jour .fleche{ border-radius:50%; }
+.bouton-aujourdhui{ border-radius:999px; }
+.touche{ border-radius:22px; }
+.ecran-pin .retour{ border-radius:999px; padding:8px 18px; margin-bottom:22px; font-weight:600; }
+.bouton-valider{ border-radius:999px; padding:8px 16px; }
+.boutons-modale .btn-annuler,
+.boutons-modale .btn-confirmer{ border-radius:16px; padding:13px 0; }
+.btn-confirmer{ border-radius:16px; }
+.option-notif{ border-radius:16px; border:1px solid var(--glass-bord); }
+.option-notif.actif{ border-color:rgba(255,255,255,0.5); color:#fff; }
+.bouton-option-edition,
+.bouton-edition-profil{ border:1px solid var(--glass-bord); }
+.bouton-edition-profil{ border-color:rgba(255,255,255,0.5); }
+.badge-camera{ border:1px solid var(--glass-bord); }
+.bouton-fermer{
+  width:32px; height:32px; padding:0;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+}
+.bouton-fermer svg{ width:16px; height:16px; }
+
+/* anneau de focus clavier discret, aux couleurs du thème */
+.deconnexion:focus-visible,
+.selecteur-jour .fleche:focus-visible,
+.bouton-aujourdhui:focus-visible,
+.bouton-succes:focus-visible,
+.btn-annuler:focus-visible,
+.btn-confirmer:focus-visible,
+.bouton-valider:focus-visible,
+.bouton-option-edition:focus-visible,
+.bouton-edition-profil:focus-visible,
+.option-notif:focus-visible,
+.bouton-fermer:focus-visible{
+  outline:2px solid var(--glass-texte);
+  outline-offset:3px;
+}
+
+/* rangée « Revenir à aujourd'hui » + « Succès » */
+.rangee-boutons{
+  display:flex; justify-content:center; align-items:center;
+  flex-wrap:wrap; gap:10px;
+  margin:0 0 22px;
+}
+.rangee-boutons .bouton-aujourdhui{ margin:0; }
+.bouton-succes{
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 18px;
+  font-family:'Poppins',sans-serif;
+  font-size:0.78rem; font-weight:600;
+  border-radius:999px;
+  cursor:pointer;
+}
+.bouton-succes svg{ width:15px; height:15px; flex-shrink:0; }
+.bouton-succes .compteur{
+  padding:1px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,0.4);
+  font-size:0.7rem;
+}
+
+/* pastilles de thème : petites bulles de verre colorées */
+.pastille-theme{
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.92) 0 9%, rgba(255,255,255,0) 38%),
+    linear-gradient(160deg, rgba(255,255,255,0.38), rgba(255,255,255,0) 58%),
+    var(--c, #3B82F6);
+  border:2px solid rgba(255,255,255,0.72);
+  box-shadow:
+    inset 0 -7px 10px rgba(0,0,0,0.2),
+    inset 0 2px 3px rgba(255,255,255,0.85),
+    0 8px 16px -6px var(--c, #3B82F6),
+    0 2px 6px rgba(15,23,42,0.18);
+  transition:transform .32s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease;
+}
+@media (hover:hover){ .pastille-theme:hover{ transform:scale(1.12); } }
+.pastille-theme:active{ transform:scale(.9); }
+.pastille-theme.actif{
+  border-color:#fff;
+  transform:scale(1.16);
+  box-shadow:
+    inset 0 -7px 10px rgba(0,0,0,0.2),
+    inset 0 2px 3px rgba(255,255,255,0.85),
+    0 0 0 2.5px var(--texte),
+    0 8px 16px -6px var(--c, #3B82F6);
+}
+.options-edition-profil .selecteur-theme{
+  background:var(--verre-panneau);
+  -webkit-backdrop-filter:blur(16px) saturate(170%);
+  backdrop-filter:blur(16px) saturate(170%);
+  border:1px solid var(--glass-bord);
+  box-shadow:inset 0 1.5px 0 var(--glass-reflet), 0 12px 24px -10px var(--glass-ombre);
+  border-radius:999px;
+}
+
+/* ============================================================
+   ANIMATIONS DE PAGE
+   ============================================================ */
+@keyframes anim-monter{ from{ opacity:0; transform:translate3d(0,26px,0) scale(.97); } to{ opacity:1; transform:none; } }
+@keyframes anim-descendre{ from{ opacity:0; transform:translate3d(0,-22px,0); } to{ opacity:1; transform:none; } }
+@keyframes anim-droite{ from{ opacity:0; transform:translate3d(36px,0,0); } to{ opacity:1; transform:none; } }
+@keyframes anim-gauche{ from{ opacity:0; transform:translate3d(-36px,0,0); } to{ opacity:1; transform:none; } }
+@keyframes anim-fondu{ from{ opacity:0; } to{ opacity:1; } }
+@keyframes anim-pop-in{ from{ opacity:0; transform:scale(.55); } to{ opacity:1; transform:none; } }
+@keyframes anim-zoom-ecran{ from{ opacity:0; transform:scale(1.05); } to{ opacity:1; transform:none; } }
+@keyframes anim-sortie-gauche{ to{ opacity:0; transform:translate3d(-30px,0,0) scale(.98); } }
+@keyframes anim-sortie-bas{ to{ opacity:0; transform:translate3d(0,22px,0) scale(.98); } }
+@keyframes anim-sortie-ecran{ to{ opacity:0; transform:scale(.97); } }
+@keyframes anim-jour-suivant{ from{ opacity:0; transform:translate3d(46px,0,0); } to{ opacity:1; transform:none; } }
+@keyframes anim-jour-precedent{ from{ opacity:0; transform:translate3d(-46px,0,0); } to{ opacity:1; transform:none; } }
+@keyframes anim-secouer{
+  0%,100%{ transform:translateX(0); }
+  18%{ transform:translateX(-10px); } 36%{ transform:translateX(9px); }
+  54%{ transform:translateX(-6px); } 72%{ transform:translateX(4px); }
+}
+@keyframes anim-case{
+  0%{ transform:scale(.4) rotate(-12deg); }
+  55%{ transform:scale(1.28) rotate(6deg); }
+  100%{ transform:scale(1) rotate(0); }
+}
+@keyframes anim-onde{
+  0%{ box-shadow:0 0 0 0 rgba(var(--onde-rgb, 108,140,255),.55); }
+  100%{ box-shadow:0 0 0 16px rgba(var(--onde-rgb, 108,140,255),0); }
+}
+
+/* écran de sélection */
+.ecran-selection.anim-entree{ animation:anim-zoom-ecran .55s cubic-bezier(.22,1,.36,1) backwards; }
+.ecran-selection.anim-entree .selection-header{ animation:anim-descendre .6s cubic-bezier(.22,1,.36,1) .08s backwards; }
+.ecran-selection.anim-entree .carousel-famille{ animation:anim-monter .7s cubic-bezier(.22,1,.36,1) .12s backwards; }
+.ecran-selection.sortie{ animation:anim-sortie-ecran .2s ease-in forwards; }
+
+/* écran du code */
+.ecran-pin.anim-entree > *{
+  animation:anim-droite .5s cubic-bezier(.22,1,.36,1) backwards;
+  animation-delay:calc(var(--i,0) * 55ms);
+}
+.ecran-pin.anim-entree.entree-depuis-taches > *{ animation-name:anim-gauche; }
+.ecran-pin.anim-entree > *:nth-child(1){ --i:0; }
+.ecran-pin.anim-entree > *:nth-child(2){ --i:1; }
+.ecran-pin.anim-entree > *:nth-child(3){ --i:2; }
+.ecran-pin.anim-entree > *:nth-child(4){ --i:3; }
+.ecran-pin.anim-entree > *:nth-child(5){ --i:4; }
+.ecran-pin.anim-entree > *:nth-child(6){ --i:5; }
+.ecran-pin.anim-entree > *:nth-child(7){ --i:6; }
+.ecran-pin.anim-entree .pavé-numerique > *{
+  animation:anim-pop-in .45s cubic-bezier(.34,1.56,.64,1) backwards;
+  animation-delay:calc(160ms + var(--k,0) * 28ms);
+}
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(1){ --k:1; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(2){ --k:2; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(3){ --k:3; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(4){ --k:4; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(5){ --k:5; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(6){ --k:6; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(7){ --k:7; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(8){ --k:8; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(9){ --k:9; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(10){ --k:10; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(11){ --k:11; }
+.ecran-pin.anim-entree .pavé-numerique > *:nth-child(12){ --k:12; }
+.ecran-pin.sortie > *{ animation:anim-sortie-gauche .2s ease-in forwards; }
+.pin-points.secoue{ animation:anim-secouer .45s ease; }
+
+/* écran des tâches : les blocs montent l'un après l'autre */
+.ecran-taches.anim-entree > *{
+  animation:anim-monter .55s cubic-bezier(.22,1,.36,1) backwards;
+  animation-delay:calc(var(--i,0) * 75ms);
+}
+.ecran-taches.anim-entree > *:nth-child(1){ --i:0; }
+.ecran-taches.anim-entree > *:nth-child(2){ --i:1; }
+.ecran-taches.anim-entree > *:nth-child(3){ --i:2; }
+.ecran-taches.anim-entree > *:nth-child(4){ --i:3; }
+.ecran-taches.anim-entree > *:nth-child(5){ --i:4; }
+.ecran-taches.anim-entree > *:nth-child(6){ --i:5; }
+.ecran-taches.sortie > *{ animation:anim-sortie-bas .2s ease-in forwards; }
+
+/* changement de jour : le contenu glisse du côté où l'on va */
+.contenu-jour.glisse-suivant{ animation:anim-jour-suivant .42s cubic-bezier(.22,1,.36,1) backwards; }
+.contenu-jour.glisse-precedent{ animation:anim-jour-precedent .42s cubic-bezier(.22,1,.36,1) backwards; }
+.contenu-jour.glisse-fondu{ animation:anim-fondu .4s ease backwards; }
+.date-texte.change-suivant{ animation:anim-jour-suivant .38s cubic-bezier(.22,1,.36,1) backwards; }
+.date-texte.change-precedent{ animation:anim-jour-precedent .38s cubic-bezier(.22,1,.36,1) backwards; }
+.date-texte.change-fondu{ animation:anim-fondu .35s ease backwards; }
+.contenu-jour[class*="glisse-"] .tache{
+  animation:anim-monter .45s cubic-bezier(.22,1,.36,1) backwards;
+  animation-delay:calc(60ms + var(--k,0) * 45ms);
+}
+.contenu-jour[class*="glisse-"] .tache:nth-child(1){ --k:1; }
+.contenu-jour[class*="glisse-"] .tache:nth-child(2){ --k:2; }
+.contenu-jour[class*="glisse-"] .tache:nth-child(3){ --k:3; }
+.contenu-jour[class*="glisse-"] .tache:nth-child(4){ --k:4; }
+.contenu-jour[class*="glisse-"] .tache:nth-child(5){ --k:5; }
+.contenu-jour[class*="glisse-"] .tache:nth-child(6){ --k:6; }
+.contenu-jour[class*="glisse-"] .tache:nth-child(7){ --k:7; }
+.contenu-jour[class*="glisse-"] .tache:nth-child(8){ --k:8; }
+.contenu-jour[class*="glisse-"] .tache:nth-child(9){ --k:9; }
+.contenu-jour[class*="glisse-"] .tache:nth-child(10){ --k:10; }
+
+/* case qui se coche / se valide */
+.case.anim-pop{ animation:anim-case .55s cubic-bezier(.34,1.56,.64,1); }
+.case.valide.anim-pop{ animation:anim-case .55s cubic-bezier(.34,1.56,.64,1), anim-onde .8s ease-out; }
+
+/* fenêtres modales */
+.fond-modale{ animation:anim-fondu .22s ease; }
+.boite-modale,
+.boite-succes{ animation:anim-pop-in .38s cubic-bezier(.34,1.56,.64,1); }
+
+#app{ overflow-x:clip; }
+
+/* ============================================================
+   SUCCÈS : toast + panneau
+   ============================================================ */
+.toasts-succes{
+  position:fixed; top:14px; left:0; right:0;
+  z-index:2000;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  padding:0 14px;
+  pointer-events:none;
+}
+.toast-succes{
+  pointer-events:auto;
+  cursor:pointer;
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  display:flex; align-items:center; gap:13px;
+  width:100%; max-width:410px;
+  padding:11px 18px 11px 11px;
+  border-radius:26px;
+  background:linear-gradient(150deg, var(--glass-a), var(--glass-b)), var(--verre-panneau);
+  -webkit-backdrop-filter:blur(20px) saturate(190%);
+  backdrop-filter:blur(20px) saturate(190%);
+  border:1px solid var(--glass-bord);
+  box-shadow:
+    inset 0 1.5px 0 var(--glass-reflet),
+    inset 0 -12px 18px -10px rgba(255,255,255,0.25),
+    0 18px 36px -12px var(--glass-ombre),
+    0 4px 14px rgba(15,23,42,0.18);
+  animation:toast-entree .7s cubic-bezier(.34,1.56,.64,1) both;
+}
+.toast-succes::before{
+  content:""; position:absolute; left:6%; right:6%; top:0; height:46%;
+  border-radius:inherit;
+  background:linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0));
+  pointer-events:none; z-index:-1;
+}
+.toast-succes::after{
+  content:""; position:absolute; top:0; bottom:0; width:60%; left:-80%;
+  background:linear-gradient(100deg, rgba(255,255,255,0), rgba(255,255,255,0.65), rgba(255,255,255,0));
+  transform:skewX(-18deg);
+  animation:toast-brillance 1.4s ease .45s 1 both;
+  pointer-events:none; z-index:-1;
+}
+.toast-succes.sortie{ animation:toast-sortie .42s cubic-bezier(.5,0,.75,0) forwards; }
+@keyframes toast-entree{
+  0%{ opacity:0; transform:translate3d(0,-90px,0) scale(.82); }
+  100%{ opacity:1; transform:none; }
+}
+@keyframes toast-sortie{ to{ opacity:0; transform:translate3d(0,-70px,0) scale(.9); } }
+@keyframes toast-brillance{ from{ left:-80%; } to{ left:140%; } }
+.toast-icone,
+.icone-succes{
+  flex-shrink:0;
+  width:46px; height:46px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  color:#fff;
+  background:linear-gradient(150deg, var(--glass-fort-a), var(--glass-fort-b));
+  box-shadow:
+    inset 0 2px 2px rgba(255,255,255,0.65),
+    inset 0 -6px 8px rgba(0,0,0,0.15),
+    0 8px 16px -6px var(--glass-ombre);
+}
+.toast-icone svg,
+.icone-succes svg{ width:24px; height:24px; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
+.toast-texte{ min-width:0; }
+.toast-texte small{
+  display:block;
+  font-size:0.62rem; font-weight:700;
+  letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--glass-texte);
+  opacity:.85;
+}
+.toast-texte strong{ display:block; font-size:0.98rem; font-weight:700; color:var(--texte); line-height:1.25; }
+.toast-texte span{ display:block; font-size:0.76rem; color:var(--texte-doux); line-height:1.35; }
+
+.confettis{ position:fixed; inset:0; pointer-events:none; z-index:2100; overflow:hidden; }
+.confettis i{ position:absolute; top:70px; left:50%; width:8px; height:12px; border-radius:2px; opacity:0; }
+
+.boite-succes{
+  position:relative; overflow:hidden; isolation:isolate;
+  width:100%; max-width:430px;
+  max-height:min(82vh, 680px);
+  display:flex; flex-direction:column;
+  padding:22px 18px 18px;
+  border-radius:30px;
+  background:linear-gradient(150deg, var(--glass-a), var(--glass-b)), var(--verre-panneau);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  backdrop-filter:blur(24px) saturate(180%);
+  border:1px solid var(--glass-bord);
+  box-shadow:
+    inset 0 1.5px 0 var(--glass-reflet),
+    0 30px 60px -20px rgba(8,12,24,0.5),
+    0 4px 18px rgba(15,23,42,0.2);
+  color:var(--texte);
+}
+.boite-succes::before{
+  content:""; position:absolute; left:0; right:0; top:0; height:150px;
+  border-radius:30px 30px 0 0;
+  background:linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0));
+  pointer-events:none; z-index:-1;
+}
+.entete-succes{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.entete-succes h3{ margin:0; font-size:1.15rem; font-weight:700; }
+.entete-succes .total{ font-size:0.76rem; color:var(--texte-doux); font-weight:500; }
+.entete-succes .bouton-fermer{ margin-left:auto; }
+.barre-globale{
+  height:8px; border-radius:999px; overflow:hidden;
+  background:rgba(128,140,165,0.25);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,0.15);
+  margin-bottom:14px;
+}
+.barre-globale i, .barre-prog i{
+  display:block; height:100%; border-radius:inherit;
+  background:linear-gradient(90deg, var(--glass-fort-b), var(--glass-fort-a));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.5);
+  transition:width .8s cubic-bezier(.22,1,.36,1);
+}
+.liste-succes{
+  overflow-y:auto; overscroll-behavior:contain;
+  display:flex; flex-direction:column; gap:8px;
+  padding:2px 2px 4px;
+  margin:0 -4px; padding-left:4px; padding-right:4px;
+}
+.ligne-succes{
+  display:flex; align-items:center; gap:12px;
+  padding:10px 12px;
+  border-radius:20px;
+  background:var(--ligne);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.18);
+  animation:anim-monter .45s cubic-bezier(.22,1,.36,1) backwards;
+  animation-delay:calc(var(--k,0) * 40ms);
+}
+.ligne-succes .texte{ min-width:0; flex:1; }
+.ligne-succes .titre{ font-size:0.88rem; font-weight:700; color:var(--texte); }
+.ligne-succes .desc{ font-size:0.74rem; color:var(--texte-doux); line-height:1.35; margin-top:1px; }
+.ligne-succes .date{ font-size:0.68rem; color:var(--glass-texte); font-weight:600; margin-top:3px; }
+.ligne-succes.verrouille .icone-succes{
+  background:linear-gradient(150deg, rgba(140,150,172,0.55), rgba(140,150,172,0.3));
+  color:var(--texte-doux);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,0.3);
+}
+.ligne-succes.verrouille .icone-succes svg{ filter:none; opacity:.8; }
+.ligne-succes.verrouille .titre{ color:var(--texte-doux); }
+.barre-prog{
+  display:flex; align-items:center; gap:8px; margin-top:6px;
+}
+.barre-prog span{ font-size:0.66rem; color:var(--texte-doux); font-weight:600; white-space:nowrap; }
+.barre-prog .rail{
+  flex:1; height:6px; border-radius:999px; overflow:hidden;
+  background:rgba(128,140,165,0.28);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration:.01ms !important;
+    animation-delay:0ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+}
 </style>
 
 <script>
@@ -1217,8 +1859,50 @@ let dateAffichee = new Date();
 let vueActuelle = "login"; // login | pin | taches
 let editionProfilOuverte = false;
 
+/* ---- Animations de page ---- */
+let vueRendue = null;          // dernière vue réellement affichée (pour détecter un changement de page)
+let enTransition = false;      // une animation de sortie est en cours
+let animJour = null;           // "suivant" | "precedent" | "fondu" : sens du dernier changement de jour
+const animCles = new Set();    // tâches à animer (cochées / validées) au prochain rendu
+
+function mouvementReduit(){
+  return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+/* Joue l'animation de sortie de l'écran actuel, puis exécute le changement de vue */
+function allerVue(changer){
+  if(enTransition) return;
+  const ecran = document.getElementById("app").firstElementChild;
+  if(!ecran || mouvementReduit()){ changer(); return; }
+  enTransition = true;
+  ecran.classList.add('sortie');
+  setTimeout(()=>{ enTransition = false; changer(); }, 200);
+}
+
+/* Après un rendu : si la page a changé, l'écran joue son animation d'entrée */
+function appliquerEntree(app){
+  if(vueActuelle === "login" && !app.querySelector('.famille-card')) return; // écran encore vide
+  const precedente = vueRendue;
+  vueRendue = vueActuelle;
+  if(precedente === vueActuelle || mouvementReduit()) return;
+  const ecran = app.firstElementChild;
+  if(!ecran) return;
+  ecran.classList.add('anim-entree', 'entree-depuis-' + (precedente || 'demarrage'));
+  setTimeout(()=>{ ecran.classList.remove('anim-entree', 'entree-depuis-' + (precedente || 'demarrage')); }, 1400);
+}
+
 /* ---- Écoute en temps réel de Firestore ---- */
+function marquerAnimations(ancien, nouveau){
+  if(vueActuelle !== "taches") return;
+  const avant = (ancien && ancien.completions) || {};
+  Object.entries((nouveau && nouveau.completions) || {}).forEach(([cle, info])=>{
+    const o = avant[cle] || {};
+    if((info.valide && !o.valide) || (info.fait && !o.fait)) animCles.add(cle);
+  });
+}
+
 DOC_REF.onSnapshot((snap) => {
+  const ancienEtat = etatCourant;
   if (snap.exists) {
     etatCourant = snap.data();
     if(!etatCourant.completions) etatCourant.completions = {};
@@ -1227,6 +1911,7 @@ DOC_REF.onSnapshot((snap) => {
     etatCourant = { completions: {}, profils: {} };
     DOC_REF.set(etatCourant);
   }
+  marquerAnimations(ancienEtat, etatCourant);
   rendre();
   verifierDigestQuotidien();
 }, (err) => {
@@ -1288,18 +1973,23 @@ function rendreAvatarEditable(personneId){
    ACTIONS
    ============================================================ */
 function ouvrirEcranPin(id){
-  personneActive = id;
-  pinSaisi = "";
-  vueActuelle = "pin";
-  rendre();
+  allerVue(()=>{
+    personneActive = id;
+    pinSaisi = "";
+    vueActuelle = "pin";
+    rendre();
+  });
 }
 
 function retourLogin(){
-  personneActive = null;
-  pinSaisi = "";
-  vueActuelle = "login";
-  appliquerTheme("bleu");
-  rendre();
+  allerVue(()=>{
+    personneActive = null;
+    pinSaisi = "";
+    vueActuelle = "login";
+    appliquerTheme("bleu");
+    fermerSucces();
+    rendre();
+  });
 }
 
 function saisirChiffre(chiffre){
@@ -1307,12 +1997,18 @@ function saisirChiffre(chiffre){
   pinSaisi += chiffre;
   if(pinSaisi.length===4){
     if(pinSaisi === PERSONNES[personneActive].pin){
-      vueActuelle = "taches";
-      dateAffichee = new Date();
-      appliquerTheme(obtenirProfil(personneActive).theme || "bleu");
-      setTimeout(rendre, 120);
+      rendre(); // le 4e point se remplit, puis on change de page
+      setTimeout(()=>{
+        allerVue(()=>{
+          vueActuelle = "taches";
+          dateAffichee = new Date();
+          appliquerTheme(obtenirProfil(personneActive).theme || "bleu");
+          rendre();
+        });
+      }, 170);
+      return;
     } else {
-      setTimeout(()=>{ pinSaisi=""; rendre(); document.getElementById("erreur-pin").textContent = PERSONNES[personneActive].horsConfig ? "Fichier de configuration introuvable (config/" + personneActive + ".json)." : "Code incorrect, réessaie."; }, 250);
+      setTimeout(()=>{ pinSaisi=""; rendre(); const pts = document.querySelector('.pin-points'); if(pts) pts.classList.add('secoue'); document.getElementById("erreur-pin").textContent = PERSONNES[personneActive].horsConfig ? "Fichier de configuration introuvable (config/" + personneActive + ".json)." : "Code incorrect, réessaie."; }, 250);
     }
   }
   rendre();
@@ -1326,11 +2022,13 @@ function effacerChiffre(){
 function changerJour(delta){
   dateAffichee = new Date(dateAffichee);
   dateAffichee.setDate(dateAffichee.getDate()+delta);
+  animJour = delta > 0 ? "suivant" : "precedent";
   rendre();
 }
 
 function allerAujourdhui(){
   dateAffichee = new Date();
+  animJour = "fondu";
   rendre();
 }
 
@@ -1381,6 +2079,7 @@ async function marquerTacheFaite(personneId, index){
 
   // Mise à jour optimiste immédiate (locale)
   etatCourant = nouvelEtat;
+  animCles.add(cle);
   rendre();
 
   if(PERSONNES[personneId].type === "enfant"){
@@ -1414,7 +2113,10 @@ async function decocherTache(cle){
 async function validerTache(cle){
   const nouvelEtat = { ...etatCourant, completions: { ...etatCourant.completions } };
   if(nouvelEtat.completions[cle]){
-    nouvelEtat.completions[cle] = { ...nouvelEtat.completions[cle], valide:true };
+    nouvelEtat.completions[cle] = { ...nouvelEtat.completions[cle], valide:true, validePar: personneActive };
+    etatCourant = nouvelEtat;   // mise à jour immédiate (comme pour une tâche cochée)
+    animCles.add(cle);
+    rendre();
     try{
       await DOC_REF.set(nouvelEtat);
     }catch(e){
@@ -1452,7 +2154,7 @@ function construireContenuNotif(mode, heure){
   return `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h3 style="font-size:1.05rem;margin:0;">Notifications par courriel</h3>
-      <button type="button" onclick="fermerParametresNotifications()" style="background:none;border:none;cursor:pointer;color:var(--texte-doux);width:22px;height:22px;padding:0;">${ICONES.fermer}</button>
+      <button type="button" class="bouton-fermer" onclick="fermerParametresNotifications()" aria-label="Fermer">${ICONES.fermer}</button>
     </div>
     <div class="options-notif">
       <button type="button" class="option-notif ${mode==='immediat'?'actif':''}" onclick="choisirModeNotif('immediat')">
@@ -2024,6 +2726,8 @@ function rendre(){
   } else if(vueActuelle === "taches"){
     app.innerHTML = vueTaches();
   }
+  appliquerEntree(app);
+  if(vueActuelle === "taches") programmerVerifSucces();
 }
 
 function vueLogin(){
@@ -2097,6 +2801,7 @@ function vueTaches(){
         let contenuCase = "";
         if(valide){ classeCase += " valide"; contenuCase = "✓"; }
         else if(fait){ classeCase += " fait"; contenuCase = "✓"; }
+        if(animCles.has(cle)) classeCase += " anim-pop";
 
         return `
           <div class="tache" ${fait ? '' : `onclick="toggleTache('${personneActive}', ${index})"`}>
@@ -2125,6 +2830,7 @@ function vueTaches(){
         let contenuCase="";
         if(valide){classeCase+=" valide"; contenuCase="✓";}
         else if(fait){classeCase+=" fait"; contenuCase="✓";}
+        if(animCles.has(cle)) classeCase += " anim-pop";
         return `
           <div class="tache" style="cursor:default;">
             <div class="${classeCase}">${contenuCase}</div>
@@ -2140,8 +2846,14 @@ function vueTaches(){
 
   const themeCourant = obtenirProfil(personneActive).theme || "bleu";
   const pastillesTheme = Object.entries(THEMES).map(([id, t])=>
-    `<div class="pastille-theme ${themeCourant===id?'actif':''}" style="background:${t.swatch};" onclick="choisirThemeMenu('${id}')" title="${t.label}"></div>`
+    `<div class="pastille-theme ${themeCourant===id?'actif':''}" style="--c:${t.swatch};" onclick="choisirThemeMenu('${id}')" title="${t.label}"></div>`
   ).join("");
+
+  const classeJour = animJour ? ` glisse-${animJour}` : "";
+  const classeDate = animJour ? ` change-${animJour}` : "";
+  const cptSucces = comptageSucces(personneActive);
+  animCles.clear();
+  animJour = null;
 
   return `
     <div class="ecran-taches">
@@ -2155,15 +2867,18 @@ function vueTaches(){
 
       <div class="selecteur-jour">
         <div class="fleche" onclick="changerJour(-1)">‹</div>
-        <div class="date-texte">
+        <div class="date-texte${classeDate}">
           <div class="jour-nom">${jourNom}</div>
           <div class="jour-num">${reste}</div>
         </div>
         <div class="fleche" onclick="changerJour(1)">›</div>
       </div>
-      <button class="bouton-aujourdhui" onclick="allerAujourdhui()">Revenir à aujourd'hui</button>
+      <div class="rangee-boutons">
+        <button class="bouton-aujourdhui" onclick="allerAujourdhui()">Revenir à aujourd'hui</button>
+        <button class="bouton-succes" onclick="ouvrirSucces()">${ICONES.trophee}<span>Succès</span><span class="compteur">${cptSucces.debloques}/${cptSucces.total}</span></button>
+      </div>
 
-      ${contenuPrincipal}
+      <div class="contenu-jour${classeJour}">${contenuPrincipal}</div>
       <div class="conteneur-edition-profil">
         <div class="options-edition-profil" ${editionProfilOuverte ? '' : 'style="display:none;"'}>
           <div class="selecteur-theme">${pastillesTheme}</div>
@@ -2175,7 +2890,274 @@ function vueTaches(){
   `;
 }
 
+
+/* ============================================================
+   SUCCÈS (ACHIEVEMENTS)
+   Les succès sont calculés à partir de l'état partagé (tâches faites,
+   validées, séries, thème, photo…). Ceux déjà gagnés sont mémorisés
+   dans Firebase : profils[id].succes = { idSucces: dateISO }.
+   Quand un nouveau succès est débloqué pendant que la personne est
+   connectée, un toast animé s'affiche (ex. « Approuvé ! » quand un
+   parent valide une de ses tâches).
+   Pour en ajouter : copie une ligne de SUCCES (id unique, objectif, valeur).
+   ============================================================ */
+const ICONES_SUCCES = {
+  etoile: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  bouclier: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  eclair: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+  medaille: '<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>',
+  couronne: '<path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/>',
+  trophee: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+  calendrier: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/>',
+  flamme: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  soleil: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  lune: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  palette: '<circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.5"/>',
+  oeil: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
+};
+
+function svgSucces(nom){
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES_SUCCES[nom] || ICONES_SUCCES.etoile}</svg>`;
+}
+
+/* pour : "enfant" | "parent" | "tous" — valeur(stats) doit atteindre objectif pour débloquer */
+const SUCCES = [
+  { id:"premier-pas",     pour:"enfant", icone:"etoile",     titre:"Premier pas",         desc:"Termine ta première tâche.",                          objectif:1,   valeur:s=>s.faites },
+  { id:"approuve",        pour:"enfant", icone:"bouclier",   titre:"Approuvé !",          desc:"Une de tes tâches est validée par un parent.",        objectif:1,   valeur:s=>s.validees },
+  { id:"sur-la-lancee",   pour:"enfant", icone:"eclair",     titre:"Sur la lancée",       desc:"Termine 10 tâches.",                                  objectif:10,  valeur:s=>s.faites },
+  { id:"increvable",      pour:"enfant", icone:"medaille",   titre:"Increvable",          desc:"Termine 25 tâches.",                                  objectif:25,  valeur:s=>s.faites },
+  { id:"imparable",       pour:"enfant", icone:"couronne",   titre:"Imparable",           desc:"Termine 50 tâches.",                                  objectif:50,  valeur:s=>s.faites },
+  { id:"legende",         pour:"enfant", icone:"trophee",    titre:"Légende de la maison",desc:"Termine 100 tâches.",                                 objectif:100, valeur:s=>s.faites },
+  { id:"digne-confiance", pour:"enfant", icone:"bouclier",   titre:"Digne de confiance",  desc:"Fais valider 10 de tes tâches.",                      objectif:10,  valeur:s=>s.validees },
+  { id:"journee-parfaite",pour:"enfant", icone:"calendrier", titre:"Journée parfaite",    desc:"Termine toutes les tâches d'une même journée.",       objectif:1,   valeur:s=>s.parfaites },
+  { id:"serie-3",         pour:"enfant", icone:"flamme",     titre:"En feu !",            desc:"3 journées parfaites d'affilée.",                     objectif:3,   valeur:s=>s.serieMax },
+  { id:"serie-7",         pour:"enfant", icone:"couronne",   titre:"Semaine parfaite",    desc:"7 journées parfaites d'affilée.",                     objectif:7,   valeur:s=>s.serieMax },
+  { id:"leve-tot",        pour:"enfant", icone:"soleil",     titre:"Lève-tôt",            desc:"Termine une tâche avant 8 h du matin.",               objectif:1,   valeur:s=>s.leveTot },
+  { id:"feu-vert",        pour:"parent", icone:"bouclier",   titre:"Feu vert",            desc:"Valide une première tâche.",                          objectif:1,   valeur:s=>s.valideesParMoi },
+  { id:"oeil-de-lynx",    pour:"parent", icone:"oeil",       titre:"Œil de lynx",         desc:"Valide 10 tâches.",                                   objectif:10,  valeur:s=>s.valideesParMoi },
+  { id:"superviseur",     pour:"parent", icone:"trophee",    titre:"Superviseur en chef", desc:"Valide 50 tâches.",                                   objectif:50,  valeur:s=>s.valideesParMoi },
+  { id:"coloriste",       pour:"tous",   icone:"palette",    titre:"Coloriste",           desc:"Choisis un thème de couleur.",                        objectif:1,   valeur:s=>s.aTheme },
+  { id:"noctambule",      pour:"tous",   icone:"lune",       titre:"Noctambule",          desc:"Choisis le thème Nuit.",                              objectif:1,   valeur:s=>s.themeNuit },
+  { id:"photogenique",    pour:"tous",   icone:"camera",     titre:"Photogénique",        desc:"Change ta photo de profil.",                          objectif:1,   valeur:s=>s.aPhoto }
+];
+
+function succesPour(personneId){
+  const type = PERSONNES[personneId] ? PERSONNES[personneId].type : "enfant";
+  return SUCCES.filter(s => s.pour === "tous" || s.pour === type);
+}
+
+/* Journées parfaites et séries : un jour sans tâche prévue ne casse pas la série */
+function calculerSeries(personneId, parJour){
+  const jours = Object.keys(parJour).sort();
+  if(!jours.length) return { parfaites:0, serieMax:0 };
+  const fin = new Date(); fin.setHours(12, 0, 0, 0);
+  const aujourdhui = formatDateCle(new Date());
+  let parfaites = 0, serie = 0, serieMax = 0;
+  for(let d = new Date(jours[0] + "T12:00:00"); d <= fin; d.setDate(d.getDate() + 1)){
+    const cle = formatDateCle(d);
+    const prevu = ((TACHES[personneId] || {})[JOURS_SEMAINE[d.getDay()]] || []).length;
+    if(!prevu) continue;
+    if((parJour[cle] || 0) >= prevu){
+      parfaites++; serie++; serieMax = Math.max(serieMax, serie);
+    } else if(cle !== aujourdhui){
+      serie = 0; // journée manquée (aujourd'hui n'est pas encore perdu)
+    }
+  }
+  return { parfaites, serieMax };
+}
+
+function statsPersonne(personneId){
+  const profil = obtenirProfil(personneId);
+  const completions = etatCourant.completions || {};
+  let faites = 0, validees = 0, valideesParMoi = 0, leveTot = 0;
+  const parJour = {};
+  Object.entries(completions).forEach(([cle, info])=>{
+    if(!info) return;
+    const [dateCle, pid] = cle.split("_");
+    if(pid === personneId){
+      if(info.fait){
+        faites++;
+        parJour[dateCle] = (parJour[dateCle] || 0) + 1;
+        const h = info.horodatage ? new Date(info.horodatage).getHours() : 12;
+        if(h < 8) leveTot++;
+      }
+      if(info.valide) validees++;
+    }
+    if(info.validePar === personneId) valideesParMoi++;
+  });
+  const { parfaites, serieMax } = calculerSeries(personneId, parJour);
+  return {
+    faites, validees, valideesParMoi, leveTot, parfaites, serieMax,
+    aTheme: profil.theme ? 1 : 0,
+    themeNuit: profil.theme === "nuit" ? 1 : 0,
+    aPhoto: profil.photo ? 1 : 0
+  };
+}
+
+function comptageSucces(personneId){
+  const liste = succesPour(personneId);
+  const deja = obtenirProfil(personneId).succes || {};
+  return { debloques: liste.filter(s => deja[s.id]).length, total: liste.length };
+}
+
+/* ---- Détection des nouveaux succès (appelée après chaque rendu de la page des tâches) ---- */
+let timerSucces = null;
+function programmerVerifSucces(delai){
+  clearTimeout(timerSucces);
+  timerSucces = setTimeout(verifierSucces, delai || 1000);
+}
+
+async function verifierSucces(){
+  if(vueActuelle !== "taches" || !personneActive) return;
+  const id = personneActive;
+  const deja = obtenirProfil(id).succes || {};
+  const stats = statsPersonne(id);
+  const nouveaux = succesPour(id).filter(s => !deja[s.id] && s.valeur(stats) >= s.objectif);
+  if(!nouveaux.length) return;
+
+  const maintenant = new Date().toISOString();
+  const succes = { ...deja };
+  nouveaux.forEach(s => { succes[s.id] = maintenant; });
+  const nouvelEtat = { ...etatCourant, profils: { ...etatCourant.profils } };
+  nouvelEtat.profils[id] = { ...obtenirProfil(id), succes };
+  etatCourant = nouvelEtat;
+
+  afficherSucces(nouveaux);
+  const compteur = document.querySelector('.bouton-succes .compteur');
+  if(compteur){ const c = comptageSucces(id); compteur.textContent = `${c.debloques}/${c.total}`; }
+  try{
+    await DOC_REF.set(nouvelEtat);
+  }catch(e){
+    console.error("Erreur de sauvegarde des succès:", e);
+  }
+}
+
+/* ---- Toasts ---- */
+const fileToasts = [];
+let toastEnCours = false;
+
+function afficherSucces(liste){
+  if(liste.length > 3){
+    fileToasts.push({ groupe: liste.length });
+  } else {
+    liste.forEach(s => fileToasts.push(s));
+  }
+  toastSuivant();
+}
+
+function toastSuivant(){
+  if(toastEnCours) return;
+  const s = fileToasts.shift();
+  if(!s) return;
+  toastEnCours = true;
+  const el = document.createElement('div');
+  el.className = 'toast-succes';
+  el.innerHTML = s.groupe ? `
+      <div class="toast-icone">${svgSucces("trophee")}</div>
+      <div class="toast-texte"><small>Succès débloqués</small><strong>${s.groupe} nouveaux succès !</strong><span>Touche pour les découvrir</span></div>`
+    : `
+      <div class="toast-icone">${svgSucces(s.icone)}</div>
+      <div class="toast-texte"><small>Succès débloqué</small><strong>${s.titre}</strong><span>${s.desc}</span></div>`;
+  el.onclick = () => { fermerToast(el); ouvrirSucces(); };
+  document.getElementById("toasts-succes").appendChild(el);
+  confettis();
+  el._minuteur = setTimeout(() => fermerToast(el), 4600);
+}
+
+function fermerToast(el){
+  if(!el.parentNode || el.classList.contains('sortie')) return;
+  clearTimeout(el._minuteur);
+  el.classList.add('sortie');
+  setTimeout(() => { el.remove(); toastEnCours = false; toastSuivant(); }, 430);
+}
+
+function confettis(){
+  if(mouvementReduit()) return;
+  const conteneur = document.createElement('div');
+  conteneur.className = 'confettis';
+  const couleurs = [getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6C8CFF', '#FFD36B', '#FF8FA3', '#7BE0B0', '#8FB8FF', '#FFFFFF'];
+  for(let i = 0; i < 30; i++){
+    const p = document.createElement('i');
+    p.style.background = couleurs[i % couleurs.length];
+    conteneur.appendChild(p);
+    const dx = (Math.random() - 0.5) * 340;
+    const haut = 40 + Math.random() * 110;
+    const chute = 180 + Math.random() * 260;
+    const rot = (Math.random() - 0.5) * 900;
+    p.animate([
+      { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${dx * 0.55}px,${-haut}px) rotate(${rot * 0.4}deg)`, opacity: 1, offset: 0.35 },
+      { transform: `translate(${dx}px,${chute}px) rotate(${rot}deg)`, opacity: 0 }
+    ], { duration: 1100 + Math.random() * 700, easing: 'cubic-bezier(.2,.7,.4,1)', fill: 'forwards' });
+  }
+  document.body.appendChild(conteneur);
+  setTimeout(() => conteneur.remove(), 2100);
+}
+
+/* ---- Panneau « Succès » ---- */
+function ouvrirSucces(){
+  const id = personneActive;
+  if(!id) return;
+  const stats = statsPersonne(id);
+  const deja = obtenirProfil(id).succes || {};
+  const liste = succesPour(id).map(s => {
+    const val = Math.min(s.valeur(stats), s.objectif);
+    return { ...s, val, date: deja[s.id] || null, ok: !!deja[s.id] || val >= s.objectif };
+  });
+  liste.sort((a, b) => (b.ok - a.ok) || ((b.val / b.objectif) - (a.val / a.objectif)));
+  const nbOk = liste.filter(s => s.ok).length;
+
+  const lignes = liste.map((s, k) => {
+    const date = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { day:'numeric', month:'long' }) : "";
+    const bas = s.ok
+      ? `<div class="date">Débloqué${date ? " le " + date : ""}</div>`
+      : (s.objectif > 1
+          ? `<div class="barre-prog"><div class="rail"><i style="width:${Math.round(100 * s.val / s.objectif)}%"></i></div><span>${s.val} / ${s.objectif}</span></div>`
+          : '');
+    return `
+      <div class="ligne-succes ${s.ok ? '' : 'verrouille'}" style="--k:${k}">
+        <div class="icone-succes">${svgSucces(s.icone)}</div>
+        <div class="texte">
+          <div class="titre">${s.titre}</div>
+          <div class="desc">${s.desc}</div>
+          ${bas}
+        </div>
+      </div>`;
+  }).join("");
+
+  document.getElementById("boite-succes").innerHTML = `
+    <div class="entete-succes">
+      <div class="icone-succes" style="width:42px;height:42px;">${svgSucces("trophee")}</div>
+      <div><h3>Succès</h3><div class="total">${nbOk} sur ${liste.length} débloqués</div></div>
+      <button type="button" class="bouton-fermer" onclick="fermerSucces()" aria-label="Fermer">${ICONES.fermer}</button>
+    </div>
+    <div class="barre-globale"><i style="width:${Math.round(100 * nbOk / liste.length)}%"></i></div>
+    <div class="liste-succes">${lignes}</div>`;
+  document.getElementById("fond-succes").style.display = "flex";
+}
+
+function fermerSucces(){
+  const fond = document.getElementById("fond-succes");
+  if(fond) fond.style.display = "none";
+}
+
+document.addEventListener('keydown', (e) => { if(e.key === 'Escape') fermerSucces(); });
+
+/* ---- Éclat « liquide » des boutons en verre : suit le doigt / la souris ---- */
+const SEL_VERRE = '.deconnexion,.fleche,.bouton-aujourdhui,.bouton-succes,.touche,.retour,.btn-annuler,.btn-confirmer,.option-notif,.bouton-option-edition,.bouton-edition-profil,.bouton-valider,.bouton-fermer,.badge-camera';
+function suivreReflet(e){
+  const cible = e.target && e.target.closest ? e.target.closest(SEL_VERRE) : null;
+  if(!cible) return;
+  const r = cible.getBoundingClientRect();
+  cible.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+  cible.style.setProperty('--my', (e.clientY - r.top) + 'px');
+}
+document.addEventListener('pointerdown', suivreReflet, { passive:true });
+document.addEventListener('pointermove', suivreReflet, { passive:true });
+
 async function demarrer(){
+  appliquerTheme("bleu");
   document.getElementById("app").innerHTML = `
     <div class="vide" style="padding-top:120px;">Chargement du carnet…</div>
   `;
