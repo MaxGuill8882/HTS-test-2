@@ -48,6 +48,7 @@ const firebaseConfig = {
 const EMAILJS_PUBLIC_KEY  = "FJCot7ZWPE_zIE7G-";
 const EMAILJS_SERVICE_ID  = "service_rtjo66w";
 const EMAILJS_TEMPLATE_ID = "template_mx01xg9";
+const EMAILJS_TEMPLATE_DIGEST_ID = "template_sl2v0k5"; // « Home Task Service list » (variable : tasks_list)
 
 /*const PARENT_EMAILS = ["michaudlaurence@hotmail.com", "martinguillemette622@gmail.com"];
 
@@ -303,6 +304,8 @@ function varsVerre(theme){
   const d = (alpha) => `rgba(${dr},${dg},${db},${alpha})`;
   const fonce = (k) => `rgb(${Math.round(r*k)},${Math.round(g*k)},${Math.round(b*k)})`;
   return {
+    "--verre-sombre-a": `rgba(${Math.round(r*.5)},${Math.round(g*.5)},${Math.round(b*.5)},.66)`,
+    "--verre-sombre-b": `rgba(${Math.round(r*.62)},${Math.round(g*.62)},${Math.round(b*.62)},.46)`,
     "--glass-a": a(sombre ? 0.46 : 0.46),
     "--glass-b": a(sombre ? 0.15 : 0.16),
     "--glass-fort-a": a(0.94),
@@ -1875,6 +1878,44 @@ body::before{display:none}
 .pastille-theme.actif{box-shadow:0 0 0 2.5px var(--texte) !important}
 .options-edition-profil .selecteur-theme{border-radius:999px}
 
+/* ============================================================
+   CONTRASTE — texte et icônes toujours lisibles sur la photo de fond
+   ============================================================ */
+#verre{z-index:-1}
+#verre .filtre{background-image:linear-gradient(rgba(0,0,0,var(--voile,.28)),rgba(0,0,0,var(--voile,.28)))}
+
+.deconnexion,.selecteur-jour .fleche,.bouton-aujourdhui,.bouton-succes,.touche,.ecran-pin .retour,
+.bouton-option-edition,.badge-camera,.bouton-valider,.bouton-edition-profil,
+.options-edition-profil .selecteur-theme{
+  background:linear-gradient(150deg, var(--verre-sombre-a, rgba(30,40,70,.66)), var(--verre-sombre-b, rgba(30,40,70,.46))) !important;
+  color:#fff !important;
+  text-shadow:0 1px 3px rgba(0,0,0,.55);
+  font-weight:700;
+}
+.bouton-edition-profil.ouvert{
+  background:linear-gradient(150deg, var(--glass-danger-a), var(--glass-danger-b)) !important;
+}
+.bouton-succes svg,.bouton-option-edition svg,.bouton-edition-profil svg,.badge-camera svg,.bouton-fermer svg{
+  stroke:#fff !important;
+  color:#fff !important;
+  opacity:1 !important;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));
+}
+.bouton-edition-profil svg{width:24px;height:24px}
+.bouton-succes .compteur{background:rgba(255,255,255,.92);color:#222;text-shadow:none}
+
+/* textes posés directement sur la photo */
+.section-titre,.carte-membre .titre-membre,.vide,
+.ecran-pin h2,.ecran-pin .sous-titre{
+  color:#fff !important;
+  text-shadow:0 1px 3px rgba(0,0,0,.75), 0 0 12px rgba(0,0,0,.45);
+}
+.vide{background:rgba(0,0,0,.35)}
+.carte-membre{background:rgba(20,24,34,.45)}
+.erreur-pin{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);font-weight:600}
+.pin-point{background:rgba(255,255,255,.3);box-shadow:inset 0 0 0 2px rgba(255,255,255,.85)}
+.pin-point.rempli{background:#fff}
+
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{
     animation-duration:.01ms !important;
@@ -2366,14 +2407,14 @@ function traiterFileCourriels(){
     const item = fileCourriels.shift();
     if(!item){ fileEnCours = false; return; }
 
-    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    emailjs.send(EMAILJS_SERVICE_ID, item.templateId || EMAILJS_TEMPLATE_ID, item.params || {
       to_email: item.email,
       child_name: item.nomEnfant,
       task_name: item.nomTache,
       message: `${item.nomEnfant} a terminé "${item.nomTache}". Veuillez vérifier puis valider la complétion.`
     }).then(()=>{
       console.log(`Courriel envoyé à ${item.email} pour la tâche "${item.nomTache}".`);
-    }).catch((err)=> console.error("Erreur EmailJS:", err));
+    }).catch((err)=>{ console.error("Erreur EmailJS:", err); if(item.surEchec) item.surEchec(); });
 
     if(fileCourriels.length > 0){
       setTimeout(envoyerSuivant, DELAI_ENTRE_COURRIELS_MS);
@@ -2394,13 +2435,55 @@ function traiterFileCourriels(){
    ============================================================ */
 let digestEnCours = new Set();
 
+/* Liste HTML des tâches faites mais pas encore validées pour une date, groupées par enfant */
+function construireListeDigest(dateCle){
+  const parEnfant = {};
+  const jour = JOURS_SEMAINE[new Date(dateCle + "T12:00:00").getDay()];
+  Object.entries(etatCourant.completions || {}).forEach(([cle, info])=>{
+    if(!info || !info.fait || info.valide || !cle.startsWith(dateCle + "_")) return;
+    const [, pid, idx] = cle.split("_");
+    const nomTache = ((TACHES[pid] || {})[jour] || [])[Number(idx)];
+    if(!nomTache || !PERSONNES[pid]) return;
+    (parEnfant[pid] = parEnfant[pid] || []).push(nomTache);
+  });
+  const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return Object.entries(parEnfant).map(([pid, taches]) =>
+    `<strong>${esc(PERSONNES[pid].nom)}</strong><ul style="margin:6px 0 12px;padding-left:20px;">${taches.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`
+  ).join("");
+}
+
+/* Réserve l'envoi du jour de façon atomique : un seul appareil l'obtient, même si plusieurs sont ouverts */
+async function reclamerDigest(cleDigest){
+  try{
+    return await db.runTransaction(async (tx)=>{
+      const snap = await tx.get(DOC_REF);
+      const deja = snap.exists && snap.data().digestEnvoye && snap.data().digestEnvoye[cleDigest];
+      if(deja) return false;
+      tx.set(DOC_REF, { digestEnvoye: { [cleDigest]: true } }, { merge: true });
+      return true;
+    });
+  }catch(e){
+    console.error("Erreur de réservation du résumé quotidien:", e);
+    return false;
+  }
+}
+
+/* Si l'envoi échoue, on libère la réservation pour réessayer à la prochaine vérification */
+function libererDigest(cleDigest){
+  const envoye = { ...(etatCourant.digestEnvoye || {}) };
+  delete envoye[cleDigest];
+  etatCourant = { ...etatCourant, digestEnvoye: envoye };
+  DOC_REF.update({ ["digestEnvoye." + cleDigest]: firebase.firestore.FieldValue.delete() })
+    .catch((e)=> console.error("Erreur de libération du résumé quotidien:", e));
+}
+
 function verifierDigestQuotidien(){
   if(Object.keys(PERSONNES).length === 0) return;
   const maintenant = new Date();
   const heureCourante = String(maintenant.getHours()).padStart(2,"0") + ":" + String(maintenant.getMinutes()).padStart(2,"0");
   const dateCle = formatDateCle(maintenant);
 
-  Object.entries(PERSONNES).forEach(([id, p])=>{
+  Object.entries(PERSONNES).forEach(async ([id, p])=>{
     if(p.type !== "parent") return;
     const email = obtenirEmailParent(id, p);
     if(!email) return;
@@ -2412,29 +2495,30 @@ function verifierDigestQuotidien(){
     if(etatCourant.digestEnvoye && etatCourant.digestEnvoye[cleDigest]) return;
     if(heureCourante < pref.heure) return;
 
-    const auMoinsUnePendante = Object.entries(etatCourant.completions || {}).some(([cle, info])=>
-      cle.startsWith(dateCle + "_") && info.fait && !info.valide
-    );
-    if(!auMoinsUnePendante) return;
+    const liste = construireListeDigest(dateCle);
+    if(!liste) return; // rien à valider aujourd'hui : pas de courriel
 
     digestEnCours.add(cleDigest);
-    fileCourriels.push({ email, nomEnfant: "des enfants", nomTache: "Veuillez valider les tâches de la journée" });
-    traiterFileCourriels();
-    marquerDigestEnvoye(cleDigest);
+    try{
+      if(await reclamerDigest(cleDigest)){
+        etatCourant = { ...etatCourant, digestEnvoye: { ...(etatCourant.digestEnvoye || {}), [cleDigest]: true } };
+        const { jourNom, reste } = texteDateLisible(maintenant);
+        fileCourriels.push({
+          email,
+          templateId: EMAILJS_TEMPLATE_DIGEST_ID,
+          params: { to_email: email, parent_name: p.nom, date: `${jourNom} ${reste}`, tasks_list: liste },
+          surEchec: () => libererDigest(cleDigest)
+        });
+        traiterFileCourriels();
+      }
+    } finally {
+      digestEnCours.delete(cleDigest);
+    }
   });
 }
 
-async function marquerDigestEnvoye(cleDigest){
-  const nouvelEtat = { ...etatCourant, digestEnvoye: { ...(etatCourant.digestEnvoye||{}), [cleDigest]: true } };
-  etatCourant = nouvelEtat;
-  try{
-    await DOC_REF.set(nouvelEtat);
-  }catch(e){
-    console.error("Erreur lors du marquage du résumé quotidien:", e);
-  } finally {
-    digestEnCours.delete(cleDigest);
-  }
-}
+/* Revient sur l'onglet / l'app : on revérifie tout de suite */
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) verifierDigestQuotidien(); });
 
 /* ============================================================
    RENDU
@@ -3229,7 +3313,7 @@ async function demarrer(){
   rendre();
   chargerImagesPersonnes(); // icon.png / banniere.png : s'affichent dès qu'elles sont chargées
   verifierDigestQuotidien();
-  setInterval(verifierDigestQuotidien, 5 * 60 * 1000);
+  setInterval(verifierDigestQuotidien, 60 * 1000);
   setInterval(majHorlogeAccueil, 1000); // revérifie toutes les 5 minutes
 }
 
@@ -3320,6 +3404,7 @@ function boucle(){
   }
   if(id){
     changerFond(obtenirMetaPersonne(id).banner);
+    racine.style.setProperty('--voile', login ? '0' : '.28');
     if(login){
       const t = THEMES[obtenirProfil(id).theme] || THEMES.bleu;
       racine.style.setProperty('--filtre-fond', t.sombre ? FILTRE_SOMBRE : FILTRE_AUCUN);
@@ -3328,7 +3413,7 @@ function boucle(){
     }
   }
   if(!inst) return;
-  const c = getComputedStyle(filtre).backgroundColor;
+  const cf = getComputedStyle(filtre); const c = cf.backgroundColor + cf.backgroundImage;
   if(c !== couleurFiltre){ couleurFiltre = c; inst.markChanged(filtre); }
 
   /* 2) un proxy de verre par élément visible */
