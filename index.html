@@ -1829,6 +1829,52 @@ body::before{
   background:rgba(128,140,165,0.28);
 }
 
+/* ============================================================
+   LIQUID GLASS — blocs des personnes (écran d'accueil)
+   ============================================================ */
+.famille-card{
+  --c:59,130,246; /* remplacé par le JS selon le thème de la personne */
+  background:linear-gradient(150deg, rgba(var(--c),0.86), rgba(var(--c),0.52));
+  -webkit-backdrop-filter:blur(16px) saturate(180%);
+  backdrop-filter:blur(16px) saturate(180%);
+  border:1px solid rgba(255,255,255,0.72);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,0.95),
+    inset 0 -14px 22px -10px rgba(255,255,255,0.28),
+    inset 0 0 18px rgba(255,255,255,0.1),
+    0 18px 30px -12px rgba(var(--c),0.6),
+    0 3px 10px rgba(15,23,42,0.16);
+  overflow:hidden;
+  isolation:isolate;
+  -webkit-tap-highlight-color:transparent;
+}
+.famille-card::before{
+  content:"";
+  position:absolute;
+  left:7%; right:7%; top:0; height:46%;
+  border-radius:inherit;
+  background:linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0));
+  opacity:.8;
+  pointer-events:none;
+  z-index:-1;
+}
+.famille-card::after{
+  content:"";
+  position:absolute; inset:0;
+  border-radius:inherit;
+  background:radial-gradient(160px 120px at var(--mx,50%) var(--my,0%), rgba(255,255,255,0.7), rgba(255,255,255,0) 70%);
+  opacity:0;
+  transition:opacity .3s ease;
+  pointer-events:none;
+  z-index:-1;
+}
+@media (hover:hover){ .famille-card:hover::after{ opacity:.9; } }
+.famille-card:active::after{ opacity:1; }
+.carte-avatar{
+  box-shadow:0 0 0 2px rgba(255,255,255,0.6), 0 6px 12px -4px rgba(0,0,0,0.25);
+}
+.famille-card__nom{ text-shadow:0 1px 0 rgba(255,255,255,0.35); }
+
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{
     animation-duration:.01ms !important;
@@ -2443,7 +2489,7 @@ function carCouleur(personneId, d){
   const theme = THEMES[obtenirProfil(personneId).theme] || THEMES.bleu;
   const base = carHexVersRgb(theme.variables["--accent"]);
   const t = d <= 1 ? 0.22 * d : Math.min(0.47, 0.22 + 0.25 * (d - 1));
-  return `rgb(${base.map(v => Math.round(v + (255 - v) * t)).join(',')})`;
+  return base.map(v => Math.round(v + (255 - v) * t)).join(',');
 }
 
 /* Écart signé entre la carte i et la position du carrousel.
@@ -2489,7 +2535,7 @@ function carAppliquer(){
     const st = carte.style;
     st.transform = `translate3d(${x.toFixed(2)}px,${(-lift).toFixed(2)}px,0) scale(${echelle.toFixed(4)})`;
     st.zIndex = String(100 - Math.round(d * 10));
-    st.background = carCouleur(carte.dataset.id, d);
+    st.setProperty('--c', carCouleur(carte.dataset.id, d));
     st.opacity = opa.toFixed(3);
     st.visibility = opa <= 0.01 ? 'hidden' : 'visible';
   });
@@ -2942,6 +2988,21 @@ const SUCCES = [
   { id:"photogenique",    pour:"tous",   icone:"camera",     titre:"Photogénique",        desc:"Change ta photo de profil.",                          objectif:1,   valeur:s=>s.aPhoto }
 ];
 
+/* Les succès ne comptent que les tâches à partir de cette date (format AAAA-MM-JJ) */
+const SUCCES_DEPUIS = "2026-11-15";
+/* Ces succès ne dépendent pas des tâches : on ne les remet pas à zéro */
+const SUCCES_HORS_TACHES = ["coloriste", "noctambule", "photogenique"];
+
+/* Succès réellement débloqués : on ignore ceux gagnés avant la date de départ */
+function succesDebloques(personneId){
+  const brut = obtenirProfil(personneId).succes || {};
+  const res = {};
+  Object.entries(brut).forEach(([id, iso]) => {
+    if(SUCCES_HORS_TACHES.includes(id) || formatDateCle(new Date(iso)) >= SUCCES_DEPUIS) res[id] = iso;
+  });
+  return res;
+}
+
 function succesPour(personneId){
   const type = PERSONNES[personneId] ? PERSONNES[personneId].type : "enfant";
   return SUCCES.filter(s => s.pour === "tous" || s.pour === type);
@@ -2975,6 +3036,7 @@ function statsPersonne(personneId){
   Object.entries(completions).forEach(([cle, info])=>{
     if(!info) return;
     const [dateCle, pid] = cle.split("_");
+    if(dateCle < SUCCES_DEPUIS) return; // jours avant aujourd'hui ignorés
     if(pid === personneId){
       if(info.fait){
         faites++;
@@ -2997,7 +3059,7 @@ function statsPersonne(personneId){
 
 function comptageSucces(personneId){
   const liste = succesPour(personneId);
-  const deja = obtenirProfil(personneId).succes || {};
+  const deja = succesDebloques(personneId);
   return { debloques: liste.filter(s => deja[s.id]).length, total: liste.length };
 }
 
@@ -3011,7 +3073,7 @@ function programmerVerifSucces(delai){
 async function verifierSucces(){
   if(vueActuelle !== "taches" || !personneActive) return;
   const id = personneActive;
-  const deja = obtenirProfil(id).succes || {};
+  const deja = succesDebloques(id);
   const stats = statsPersonne(id);
   const nouveaux = succesPour(id).filter(s => !deja[s.id] && s.valeur(stats) >= s.objectif);
   if(!nouveaux.length) return;
@@ -3100,7 +3162,7 @@ function ouvrirSucces(){
   const id = personneActive;
   if(!id) return;
   const stats = statsPersonne(id);
-  const deja = obtenirProfil(id).succes || {};
+  const deja = succesDebloques(id);
   const liste = succesPour(id).map(s => {
     const val = Math.min(s.valeur(stats), s.objectif);
     return { ...s, val, date: deja[s.id] || null, ok: !!deja[s.id] || val >= s.objectif };
@@ -3145,7 +3207,7 @@ function fermerSucces(){
 document.addEventListener('keydown', (e) => { if(e.key === 'Escape') fermerSucces(); });
 
 /* ---- Éclat « liquide » des boutons en verre : suit le doigt / la souris ---- */
-const SEL_VERRE = '.deconnexion,.fleche,.bouton-aujourdhui,.bouton-succes,.touche,.retour,.btn-annuler,.btn-confirmer,.option-notif,.bouton-option-edition,.bouton-edition-profil,.bouton-valider,.bouton-fermer,.badge-camera';
+const SEL_VERRE = '.famille-card,.deconnexion,.fleche,.bouton-aujourdhui,.bouton-succes,.touche,.retour,.btn-annuler,.btn-confirmer,.option-notif,.bouton-option-edition,.bouton-edition-profil,.bouton-valider,.bouton-fermer,.badge-camera';
 function suivreReflet(e){
   const cible = e.target && e.target.closest ? e.target.closest(SEL_VERRE) : null;
   if(!cible) return;
