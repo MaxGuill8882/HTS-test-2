@@ -3333,6 +3333,7 @@ const imgs = Array.from(racine.querySelectorAll('img.bg'));
 const filtre = racine.querySelector('.filtre');
 const pool = [];
 let inst = null, actif = 0, urlCourante = '', couleurFiltre = '';
+let requeteFond = 0, minuterieFondu = null;
 
 function chargerImg(img, url){
   return new Promise(ok => { img.crossOrigin = 'anonymous'; img.onload = () => ok(true); img.onerror = () => ok(false); img.src = url; });
@@ -3343,17 +3344,20 @@ function changerFond(url){
   url = url || FOND_DEFAUT;
   if(url === urlCourante) return;
   urlCourante = url;
+  const numeroRequete = ++requeteFond;
   const nouveau = imgs[1 - actif], ancien = imgs[actif];
   chargerImg(nouveau, url).then(ok => {
-    if(!ok || url !== urlCourante) return;
+    if(!ok || numeroRequete !== requeteFond || url !== urlCourante) return;
+    clearTimeout(minuterieFondu);
     nouveau.style.zIndex = 2; ancien.style.zIndex = 1;
     nouveau.dataset.dynamic = ''; ancien.dataset.dynamic = '';
     nouveau.style.opacity = 1;
     actif = 1 - actif;
-    setTimeout(() => {
+    minuterieFondu = setTimeout(() => {
       ancien.style.opacity = 0;
       delete nouveau.dataset.dynamic; delete ancien.dataset.dynamic;
       if(inst) inst.markChanged();
+      minuterieFondu = null;
     }, FOND_FONDU_MS + 100);
   });
 }
