@@ -3566,8 +3566,13 @@ function cacher(p){
   p.style.left = '-40px'; p.style.top = '-40px'; p.style.width = '4px'; p.style.height = '4px';
 }
 
+let boucleRaf = 0;
+function reveillerBoucle(){
+  if(!boucleRaf) boucleRaf = requestAnimationFrame(boucle);
+}
+
 function boucle(){
-  requestAnimationFrame(boucle);
+  boucleRaf = 0;
 
   /* 1) fond = bannière de la personne (au centre du carrousel, ou connectée / en train de saisir son code) */
   const login = vueActuelle === 'login';
@@ -3605,7 +3610,19 @@ function boucle(){
     placer(pool[k++], r, el, cs, o);
   }
   for(; k < pool.length; k++) cacher(pool[k]);
+
+  if(CAR.drag || CAR.raf || document.getAnimations().some(animation => animation.playState === 'running')){
+    reveillerBoucle();
+  }
 }
+
+['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'click', 'keydown', 'input', 'change']
+  .forEach(type => document.addEventListener(type, reveillerBoucle, { passive:true }));
+window.addEventListener('scroll', reveillerBoucle, { passive:true, capture:true });
+window.addEventListener('resize', reveillerBoucle, { passive:true });
+new MutationObserver(reveillerBoucle).observe(document.getElementById('app'), {
+  childList:true, subtree:true, attributes:true, attributeFilter:['class']
+});
 
 (async () => {
   await Promise.all(imgs.map(i => chargerImg(i, FOND_DEFAUT)));
@@ -3617,8 +3634,8 @@ function boucle(){
     racine.appendChild(d);
     pool.push(d);
   }
-  requestAnimationFrame(boucle); // le fond fonctionne même si la librairie ne se charge pas
   inst = await LiquidGlass.init({ root: racine, glassElements: pool });
+  reveillerBoucle();
 })().catch(e => console.error('LiquidGlass :', e));
 </script>
 </body>
