@@ -132,7 +132,7 @@ const PERSONNE_META = {
    ============================================================ */
 const DOSSIER_IMAGES = "config/images";
 const DOSSIERS_PERSONNES = { valerie: ["valérie", "valerie"] };
-const EXTENSIONS_IMAGES = ["png", "jpg", "jpeg", "webp", "gif"];
+const EXTENSIONS_IMAGES = ["png", "jpg", "jpeg", "webp"];
 const IMAGES_PERSONNES = {}; // id -> { icone, banniere } (URL déjà vérifiées)
 
 function candidatsImage(id, noms){
@@ -257,6 +257,7 @@ const THEMES = {
     }
   },
   nuit: {
+    sombre: true,   // thème sombre : surfaces sombres + filtre sombre sur l'image de fond
     label: "Nuit",
     swatch: "#6C8CFF",
     variables: {
@@ -268,10 +269,31 @@ const THEMES = {
   }
 };
 
+/* Surfaces « verre » (barre du haut, bouton, lignes de tâches) : claires par défaut,
+   sombres pour les thèmes marqués  sombre: true  (ex. Nuit). */
+const SURFACES_CLAIRES = {
+  "--verre": "rgba(255,255,255,0.52)",
+  "--verre-bouton": "rgba(255,255,255,0.7)",
+  "--ligne": "rgba(255,255,255,0.78)"
+};
+const SURFACES_SOMBRES = {
+  "--verre": "rgba(36,40,50,0.78)",
+  "--verre-bouton": "rgba(51,59,82,0.92)",
+  "--ligne": "rgba(51,59,82,0.88)"
+};
+/* Filtre posé sur l'image de fond quand un thème sombre est choisi (alpha : 0 = transparent, 1 = noir) */
+const FILTRE_SOMBRE = "rgba(8,10,18,0.55)";
+const FILTRE_AUCUN  = "rgba(8,10,18,0)";
+
 function appliquerTheme(themeId){
   const theme = THEMES[themeId] || THEMES.bleu;
   const racine = document.documentElement;
-  Object.entries(theme.variables).forEach(([variable, valeur])=>{
+  const variables = {
+    ...theme.variables,
+    ...(theme.sombre ? SURFACES_SOMBRES : SURFACES_CLAIRES),
+    "--filtre-fond": theme.sombre ? FILTRE_SOMBRE : FILTRE_AUCUN
+  };
+  Object.entries(variables).forEach(([variable, valeur])=>{
     racine.style.setProperty(variable, valeur);
   });
 }
@@ -321,6 +343,10 @@ const ICONES = {
   --ombre-c1:#c3cad6;
   --ombre-c2:#ffffff;
   --radius:18px;
+  --verre:rgba(255,255,255,0.52);
+  --verre-bouton:rgba(255,255,255,0.7);
+  --ligne:rgba(255,255,255,0.78);
+  --filtre-fond:rgba(8,10,18,0);
   --ombre-ext: 8px 8px 16px var(--ombre-c1), -8px -8px 16px var(--ombre-c2);
   --ombre-ext-sm: 4px 4px 10px var(--ombre-c1), -4px -4px 10px var(--ombre-c2);
   --ombre-int: inset 4px 4px 8px var(--ombre-c1), inset -4px -4px 8px var(--ombre-c2);
@@ -336,6 +362,7 @@ body{
   min-height:100vh;
 }
 #app{
+  position:relative; z-index:1;
   max-width:100%;
   margin:0 auto;
   min-height:100vh;
@@ -381,6 +408,7 @@ h1,h2,h3{
   position:absolute; inset:0;
   background:center/cover no-repeat;
   opacity:0;
+  transition:opacity var(--fondu, 600ms) ease;   /* durée du fondu : FOND_FONDU_MS dans le JS */
   will-change:opacity;
 }
 .selection-header{
@@ -1143,6 +1171,22 @@ h1,h2,h3{
   font-size:0.9rem;
 }
 
+/* --- Filtre sombre sur l'image de fond (thème sombre) : fondu doux au changement de thème --- */
+body::before{
+  content:"";
+  position:fixed; inset:0; z-index:0;
+  pointer-events:none;
+  background-color:var(--filtre-fond);
+  transition:background-color .5s ease;
+}
+
+/* --- Surfaces qui suivent le thème (clair / sombre) au lieu d'un blanc codé en dur --- */
+.barre-haut{ background:var(--verre); }
+.deconnexion{ background:var(--verre-bouton); }
+.tache{ background:var(--ligne); }
+.selecteur-jour,
+.selecteur-jour .date-texte{ color:var(--texte); }
+
 /* --- Menu de personnalisation : rangée de thèmes dans le FAB --- */
 .options-edition-profil .selecteur-theme{
   margin-bottom:0;
@@ -1663,8 +1707,10 @@ const CAR = {
   startX: 0, startPos: 0, prevPos: 0, lastT: 0,
   carteDown: null,
   raf: null, tPrev: 0,
-  prete: false, derniereRoue: 0
+  prete: false, derniereRoue: 0,
+  fondActif: null, fondZ: 1, fondTimer: null   // bannière affichée, pile des calques, minuterie de fin de fondu
 };
+const FOND_FONDU_MS = 600; // durée du fondu entre deux bannières (en millisecondes)
 
 function carMesures(){
   const el = document.querySelector('.carousel-famille');
@@ -1748,23 +1794,36 @@ function carAppliquer(){
   carFond(n);
 }
 
-/* Fond : la bannière de la personne la plus proche du centre est opaque ; la voisine
-   apparaît en fondu au fur et à mesure qu'on glisse (mélange linéaire, sans « trou »). */
+/* Fond : quand la personne au centre change, sa bannière apparaît en fondu (FOND_FONDU_MS)
+   AU-DESSUS de l'ancienne, qui reste en place jusqu'à la fin du fondu (pas de « trou »). */
 function carFond(n){
   const calques = document.querySelectorAll('.fond-calque');
-  if(!calques.length) return;
+  if(!calques.length || !n) return;
   const proche = carModulo(Math.round(CAR.pos), n);
-  calques.forEach(c => {
-    const i = Number(c.dataset.index);
-    if(i === proche){
-      c.style.opacity = '1';
-      c.style.zIndex = '1';
-    } else {
-      const d = Math.abs(carEcart(i, CAR.pos, n));
-      c.style.opacity = Math.max(0, 1 - d).toFixed(3);
-      c.style.zIndex = '2';
-    }
-  });
+  if(CAR.fondActif === proche) return;
+  const premier = CAR.fondActif === null;
+  CAR.fondActif = proche;
+  CAR.fondZ += 1;
+  clearTimeout(CAR.fondTimer);
+  const nouveau = Array.from(calques).find(c => Number(c.dataset.index) === proche);
+  if(!nouveau) return;
+
+  if(premier){ // premier affichage : pas de fondu
+    calques.forEach(c => { c.style.transition = 'none'; c.style.opacity = (c === nouveau) ? '1' : '0'; });
+    nouveau.style.zIndex = String(CAR.fondZ);
+    void nouveau.offsetWidth;
+    calques.forEach(c => { c.style.transition = ''; });
+    return;
+  }
+  nouveau.style.transition = '';
+  void nouveau.offsetWidth;
+  nouveau.style.zIndex = String(CAR.fondZ);
+  nouveau.style.opacity = '1';
+  CAR.fondTimer = setTimeout(() => {
+    calques.forEach(c => {
+      if(c !== nouveau){ c.style.transition = 'none'; c.style.opacity = '0'; }
+    });
+  }, FOND_FONDU_MS + 50);
 }
 
 function carDemarrer(){
@@ -1927,9 +1986,13 @@ function majAvatarsAccueil(){
 function majFondAccueil(){
   document.querySelectorAll('.fond-calque').forEach(c => {
     const url = obtenirMetaPersonne(c.dataset.id).banner || '';
-    if(c.dataset.src === url) return;
-    c.dataset.src = url;
-    c.style.backgroundImage = url ? `url("${url.replace(/"/g, '%22')}")` : 'none';
+    const theme = THEMES[obtenirProfil(c.dataset.id).theme] || THEMES.bleu;
+    const filtre = theme.sombre ? FILTRE_SOMBRE : '';   // voile sombre si la personne a choisi un thème sombre
+    const cle = url + '|' + filtre;
+    if(c.dataset.src === cle) return;
+    c.dataset.src = cle;
+    const image = `url("${url.replace(/"/g, '%22')}")`;
+    c.style.backgroundImage = !url ? 'none' : (filtre ? `linear-gradient(${filtre}, ${filtre}), ${image}` : image);
   });
 }
 
@@ -1953,6 +2016,7 @@ function rendre(){
                                 : Math.max(0, Math.min(CAR.pos, Math.max(0, ids.length - 1)));
     }
     app.innerHTML = vueLogin();
+    CAR.fondActif = null; // nouveaux calques : premier affichage sans fondu
     majFondAccueil();
     carAppliquer();
   } else if(vueActuelle === "pin"){
@@ -1977,7 +2041,7 @@ function vueLogin(){
   const t = texteHorlogeAccueil(new Date());
   return `
     <div class="ecran-selection">
-      <div class="fond-accueil">${ids.map((id, index) => `<div class="fond-calque" data-id="${id}" data-index="${index}"></div>`).join("")}</div>
+      <div class="fond-accueil" style="--fondu:${FOND_FONDU_MS}ms">${ids.map((id, index) => `<div class="fond-calque" data-id="${id}" data-index="${index}"></div>`).join("")}</div>
       <div class="selection-header">
         <span class="heure">${t.heure}</span>
         <span class="date">${t.date}</span>
