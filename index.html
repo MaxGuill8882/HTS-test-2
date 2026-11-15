@@ -21,6 +21,7 @@
 </style>
 </head>
 <body>
+<div id="verre"><img class="bg" alt=""><img class="bg" alt=""><div class="filtre"></div></div>
 
 <script>
 /* ============================================================
@@ -1830,50 +1831,49 @@ body::before{
 }
 
 /* ============================================================
-   LIQUID GLASS — blocs des personnes (écran d'accueil)
+   RENDU WEBGL — liquid glass via @ybouane/liquidglass
+   Le verre est dessiné dans #verre (fond + proxys). Les vrais éléments
+   gardent seulement la teinte du thème et le texte.
    ============================================================ */
-.famille-card{
-  --c:59,130,246; /* remplacé par le JS selon le thème de la personne */
-  background:linear-gradient(150deg, rgba(var(--c),0.86), rgba(var(--c),0.52));
-  -webkit-backdrop-filter:blur(16px) saturate(180%);
-  backdrop-filter:blur(16px) saturate(180%);
-  border:1px solid rgba(255,255,255,0.72);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,0.95),
-    inset 0 -14px 22px -10px rgba(255,255,255,0.28),
-    inset 0 0 18px rgba(255,255,255,0.1),
-    0 18px 30px -12px rgba(var(--c),0.6),
-    0 3px 10px rgba(15,23,42,0.16);
-  overflow:hidden;
-  isolation:isolate;
-  -webkit-tap-highlight-color:transparent;
+#verre{position:fixed;inset:0;z-index:0;pointer-events:none}
+#verre .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .6s ease}
+#verre .bg + .bg{opacity:0}
+#verre .filtre{position:absolute;inset:0;z-index:5;background-color:var(--filtre-fond);transition:background-color .5s ease}
+.verre-proxy{position:absolute;pointer-events:none}
+body::before{display:none}
+.ecran-selection{background:none !important}
+.fond-accueil{display:none}
+
+.deconnexion,.selecteur-jour .fleche,.bouton-aujourdhui,.bouton-succes,.touche,.ecran-pin .retour,
+.bouton-valider,.bouton-option-edition,.bouton-edition-profil,.badge-camera,.famille-card,
+.pastille-theme,.options-edition-profil .selecteur-theme{
+  border:none !important;
+  box-shadow:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
 }
-.famille-card::before{
-  content:"";
-  position:absolute;
-  left:7%; right:7%; top:0; height:46%;
-  border-radius:inherit;
-  background:linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0));
-  opacity:.8;
-  pointer-events:none;
-  z-index:-1;
+:is(.deconnexion,.selecteur-jour .fleche,.bouton-aujourdhui,.bouton-succes,.touche,.ecran-pin .retour,
+.bouton-valider,.bouton-option-edition,.bouton-edition-profil,.badge-camera,.famille-card,
+.pastille-theme,.options-edition-profil .selecteur-theme)::before,
+:is(.deconnexion,.selecteur-jour .fleche,.bouton-aujourdhui,.bouton-succes,.touche,.ecran-pin .retour,
+.bouton-valider,.bouton-option-edition,.bouton-edition-profil,.badge-camera,.famille-card,
+.pastille-theme,.options-edition-profil .selecteur-theme)::after{display:none !important}
+
+/* teinte = couleur du thème de la personne (écran du code compris) */
+.deconnexion,.selecteur-jour .fleche,.bouton-aujourdhui,.bouton-succes,.touche,.ecran-pin .retour,
+.bouton-option-edition,.badge-camera,.options-edition-profil .selecteur-theme{
+  background:linear-gradient(150deg, var(--glass-a), var(--glass-b));
+  color:var(--glass-texte);
 }
-.famille-card::after{
-  content:"";
-  position:absolute; inset:0;
-  border-radius:inherit;
-  background:radial-gradient(160px 120px at var(--mx,50%) var(--my,0%), rgba(255,255,255,0.7), rgba(255,255,255,0) 70%);
-  opacity:0;
-  transition:opacity .3s ease;
-  pointer-events:none;
-  z-index:-1;
+.bouton-valider,.bouton-edition-profil{
+  background:linear-gradient(150deg, var(--glass-fort-a), var(--glass-fort-b));
+  color:#fff;
 }
-@media (hover:hover){ .famille-card:hover::after{ opacity:.9; } }
-.famille-card:active::after{ opacity:1; }
-.carte-avatar{
-  box-shadow:0 0 0 2px rgba(255,255,255,0.6), 0 6px 12px -4px rgba(0,0,0,0.25);
-}
-.famille-card__nom{ text-shadow:0 1px 0 rgba(255,255,255,0.35); }
+.bouton-edition-profil.ouvert{background:linear-gradient(150deg, var(--glass-danger-a), var(--glass-danger-b))}
+.famille-card{background:linear-gradient(150deg, rgba(var(--c,59,130,246),.7), rgba(var(--c,59,130,246),.38))}
+.pastille-theme{background:color-mix(in srgb, var(--c) 60%, transparent) !important}
+.pastille-theme.actif{box-shadow:0 0 0 2.5px var(--texte) !important}
+.options-edition-profil .selecteur-theme{border-radius:999px}
 
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{
@@ -2023,6 +2023,7 @@ function ouvrirEcranPin(id){
     personneActive = id;
     pinSaisi = "";
     vueActuelle = "pin";
+    appliquerTheme(obtenirProfil(id).theme || "bleu");
     rendre();
   });
 }
@@ -3233,6 +3234,131 @@ async function demarrer(){
 }
 
 demarrer();
+</script>
+<script type="module">
+/* Liquid glass : librairie @ybouane/liquidglass (WebGL).
+   Les éléments de verre doivent être des enfants directs de la racine #verre : on y place donc un
+   « proxy » vide par bouton/carte, calé chaque image sur la position du vrai élément (qui reste cliquable). */
+import { LiquidGlass } from 'https://cdn.jsdelivr.net/npm/@ybouane/liquidglass/dist/index.js';
+
+const SEL = '.famille-card,.deconnexion,.fleche,.bouton-aujourdhui,.bouton-succes,.touche,.retour,.bouton-option-edition,.bouton-edition-profil,.bouton-valider,.badge-camera,.pastille-theme,.selecteur-theme';
+const TAILLE_POOL = 40;
+const FOND_DEFAUT = 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1800&q=80';
+const racine = document.getElementById('verre');
+const imgs = Array.from(racine.querySelectorAll('img.bg'));
+const filtre = racine.querySelector('.filtre');
+const pool = [];
+let inst = null, actif = 0, urlCourante = '', couleurFiltre = '';
+
+function chargerImg(img, url){
+  return new Promise(ok => { img.crossOrigin = 'anonymous'; img.onload = () => ok(true); img.onerror = () => ok(false); img.src = url; });
+}
+
+/* fond : fondu entre la bannière précédente et la nouvelle (durée : FOND_FONDU_MS) */
+function changerFond(url){
+  url = url || FOND_DEFAUT;
+  if(url === urlCourante) return;
+  urlCourante = url;
+  const nouveau = imgs[1 - actif], ancien = imgs[actif];
+  chargerImg(nouveau, url).then(ok => {
+    if(!ok || url !== urlCourante) return;
+    nouveau.style.zIndex = 2; ancien.style.zIndex = 1;
+    nouveau.dataset.dynamic = ''; ancien.dataset.dynamic = '';
+    nouveau.style.opacity = 1;
+    actif = 1 - actif;
+    setTimeout(() => {
+      ancien.style.opacity = 0;
+      delete nouveau.dataset.dynamic; delete ancien.dataset.dynamic;
+      if(inst) inst.markChanged();
+    }, FOND_FONDU_MS + 100);
+  });
+}
+
+function opaciteEff(el){
+  let o = 1;
+  for(let n = el; n && n !== document.body; n = n.parentElement) o *= parseFloat(getComputedStyle(n).opacity);
+  return o;
+}
+
+function placer(p, r, el, cs, o){
+  const base = Math.min(r.width, r.height) / 2;
+  let rad = cs.borderTopLeftRadius;
+  rad = rad.includes('%') ? base * parseFloat(rad) / 50 : parseFloat(rad) * (r.width / (el.offsetWidth || r.width));
+  rad = Math.max(2, Math.min(rad || 0, base));
+  const bulle = el.matches('.pastille-theme,.badge-camera');
+  const cfg = JSON.stringify({
+    blurAmount: 0.2, cornerRadius: +rad.toFixed(1), zRadius: +Math.max(3, Math.min(rad, bulle ? rad : 30)).toFixed(1),
+    opacity: +o.toFixed(2), shadowOpacity: 0.22, shadowSpread: 8, bevelMode: bulle ? 1 : 0
+  });
+  if(p.dataset.config !== cfg) p.dataset.config = cfg;
+  const v = [r.left, r.top, r.width, r.height].map(n => n.toFixed(1)).join();
+  if(p._v !== v){
+    p._v = v;
+    p.style.left = r.left + 'px'; p.style.top = r.top + 'px';
+    p.style.width = r.width + 'px'; p.style.height = r.height + 'px';
+  }
+  p.style.zIndex = 10 + (parseInt(cs.zIndex) || 0);
+}
+
+function cacher(p){
+  if(p._v === 'x') return;
+  p._v = 'x';
+  p.style.left = '-40px'; p.style.top = '-40px'; p.style.width = '4px'; p.style.height = '4px';
+}
+
+function boucle(){
+  requestAnimationFrame(boucle);
+
+  /* 1) fond = bannière de la personne (au centre du carrousel, ou connectée / en train de saisir son code) */
+  const login = vueActuelle === 'login';
+  let id = null;
+  if(login){
+    const ids = obtenirIdsPersonnes();
+    if(CAR.pos !== null && ids.length) id = ids[carModulo(Math.round(CAR.pos), ids.length)];
+  } else {
+    id = personneActive;
+  }
+  if(id){
+    changerFond(obtenirMetaPersonne(id).banner);
+    if(login){
+      const t = THEMES[obtenirProfil(id).theme] || THEMES.bleu;
+      racine.style.setProperty('--filtre-fond', t.sombre ? FILTRE_SOMBRE : FILTRE_AUCUN);
+    } else {
+      racine.style.removeProperty('--filtre-fond');
+    }
+  }
+  if(!inst) return;
+  const c = getComputedStyle(filtre).backgroundColor;
+  if(c !== couleurFiltre){ couleurFiltre = c; inst.markChanged(filtre); }
+
+  /* 2) un proxy de verre par élément visible */
+  let k = 0;
+  for(const el of document.querySelectorAll(SEL)){
+    if(k >= pool.length) break;
+    const cs = getComputedStyle(el);
+    if(cs.visibility === 'hidden' || cs.display === 'none') continue;
+    const r = el.getBoundingClientRect();
+    if(r.width < 2 || r.height < 2 || r.bottom < 0 || r.top > innerHeight) continue;
+    const o = opaciteEff(el);
+    if(o < 0.01) continue;
+    placer(pool[k++], r, el, cs, o);
+  }
+  for(; k < pool.length; k++) cacher(pool[k]);
+}
+
+(async () => {
+  await Promise.all(imgs.map(i => chargerImg(i, FOND_DEFAUT)));
+  urlCourante = FOND_DEFAUT;
+  for(let i = 0; i < TAILLE_POOL; i++){
+    const d = document.createElement('div');
+    d.className = 'verre-proxy';
+    d.style.cssText = 'left:-40px;top:-40px;width:4px;height:4px';
+    racine.appendChild(d);
+    pool.push(d);
+  }
+  requestAnimationFrame(boucle); // le fond fonctionne même si la librairie ne se charge pas
+  inst = await LiquidGlass.init({ root: racine, glassElements: pool });
+})().catch(e => console.error('LiquidGlass :', e));
 </script>
 </body>
 </html>
