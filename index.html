@@ -366,6 +366,16 @@ const ICONES = {
   </div>
 </div>
 
+<div id="fond-modale-inactivite" class="fond-modale" style="display:none;">
+  <div class="boite-modale" role="alertdialog" aria-modal="true" aria-labelledby="texte-inactivite">
+    <div class="icone-modale">⌛</div>
+    <p id="texte-inactivite">Déconnexion dans <strong id="compte-rebours-inactivite">5</strong> secondes pour cause d’inactivité.</p>
+    <div class="boutons-modale">
+      <button class="btn-confirmer" onclick="enregistrerActivite()">Rester connecté</button>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="input-photo" accept="image/*" capture="environment" style="display:none;" onchange="gererFichierPhoto(event)">
 
 <div id="fond-modale-notifications" class="fond-modale" style="display:none;">
@@ -2059,6 +2069,64 @@ function rendreAvatarEditable(personneId){
 /* ============================================================
    ACTIONS
    ============================================================ */
+const INACTIVITE_AVANT_POPUP_MS = 10_000;
+const INACTIVITE_AVANT_DECONNEXION_MS = 15_000;
+let derniereActiviteSession = 0;
+let minuteurInactivite = null;
+let intervalleInactivite = null;
+let deconnexionInactiviteEnCours = false;
+
+function arreterSurveillanceInactivite(){
+  clearTimeout(minuteurInactivite);
+  clearInterval(intervalleInactivite);
+  minuteurInactivite = null;
+  intervalleInactivite = null;
+  derniereActiviteSession = 0;
+  document.getElementById("fond-modale-inactivite").style.display = "none";
+}
+
+function verifierInactivite(){
+  clearTimeout(minuteurInactivite);
+  minuteurInactivite = null;
+  if(vueActuelle !== "taches" || !personneActive){
+    arreterSurveillanceInactivite();
+    return;
+  }
+
+  const inactivite = Date.now() - derniereActiviteSession;
+  if(inactivite >= INACTIVITE_AVANT_DECONNEXION_MS){
+    deconnexionInactiviteEnCours = true;
+    arreterSurveillanceInactivite();
+    retourLogin();
+    return;
+  }
+
+  if(inactivite >= INACTIVITE_AVANT_POPUP_MS){
+    document.getElementById("fond-modale-inactivite").style.display = "flex";
+    const restantes = Math.ceil((INACTIVITE_AVANT_DECONNEXION_MS - inactivite) / 1000);
+    document.getElementById("compte-rebours-inactivite").textContent = restantes;
+    if(!intervalleInactivite) intervalleInactivite = setInterval(verifierInactivite, 250);
+    return;
+  }
+
+  document.getElementById("fond-modale-inactivite").style.display = "none";
+  clearInterval(intervalleInactivite);
+  intervalleInactivite = null;
+  minuteurInactivite = setTimeout(verifierInactivite, INACTIVITE_AVANT_POPUP_MS - inactivite);
+}
+
+function enregistrerActivite(){
+  if(vueActuelle !== "taches" || !personneActive || deconnexionInactiviteEnCours) return;
+  derniereActiviteSession = Date.now();
+  verifierInactivite();
+}
+
+function demarrerSurveillanceInactivite(){
+  deconnexionInactiviteEnCours = false;
+  derniereActiviteSession = Date.now();
+  verifierInactivite();
+}
+
 function ouvrirEcranPin(id){
   allerVue(()=>{
     personneActive = id;
@@ -2070,6 +2138,7 @@ function ouvrirEcranPin(id){
 }
 
 function retourLogin(){
+  arreterSurveillanceInactivite();
   allerVue(()=>{
     personneActive = null;
     pinSaisi = "";
@@ -2092,6 +2161,7 @@ function saisirChiffre(chiffre){
           dateAffichee = new Date();
           appliquerTheme(obtenirProfil(personneActive).theme || "bleu");
           rendre();
+          demarrerSurveillanceInactivite();
         });
       }, 170);
       return;
@@ -3302,6 +3372,14 @@ function suivreReflet(e){
 }
 document.addEventListener('pointerdown', suivreReflet, { passive:true });
 document.addEventListener('pointermove', suivreReflet, { passive:true });
+
+['pointerdown', 'pointermove', 'keydown', 'wheel', 'input', 'change'].forEach(type => {
+  document.addEventListener(type, enregistrerActivite, { passive:true });
+});
+document.addEventListener('scroll', enregistrerActivite, { passive:true, capture:true });
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden) verifierInactivite();
+});
 
 async function demarrer(){
   appliquerTheme("bleu");
