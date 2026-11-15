@@ -10,7 +10,6 @@
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <!-- EmailJS -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
@@ -1953,7 +1952,6 @@ body::before{display:none}
    ============================================================ */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const storage = firebase.storage();
 emailjs.init(EMAILJS_PUBLIC_KEY);
 
 const DOC_REF = db.collection("carnet_maison").doc("etat_taches");
@@ -2054,11 +2052,17 @@ try{
 }
 
 function obtenirPhotoLocale(personneId){
-  return PHOTOS_LOCALES[personneId] || "";
+  const photo = PHOTOS_LOCALES[personneId];
+  return typeof photo === "string" ? photo : (photo && photo.dataUrl) || "";
+}
+
+function datePhotoLocale(personneId){
+  const photo = PHOTOS_LOCALES[personneId];
+  return photo && typeof photo === "object" ? Number(photo.updatedAt) || 0 : 0;
 }
 
 function sauvegarderPhotoLocale(personneId, dataUrl){
-  const photos = { ...PHOTOS_LOCALES, [personneId]: dataUrl };
+  const photos = { ...PHOTOS_LOCALES, [personneId]: { dataUrl, updatedAt: Date.now() } };
   PHOTOS_LOCALES = photos;
   try{
     localStorage.setItem(PHOTOS_LOCALES_KEY, JSON.stringify(photos));
@@ -2094,13 +2098,22 @@ function obtenirProfil(personneId){
   return (etatCourant.profils && etatCourant.profils[personneId]) || {};
 }
 
-function obtenirMetaPersonne(personneId){
-  // Le cache local prend le dessus sur la photo Firebase pour ce navigateur.
+function obtenirPhotoProfil(personneId){
   const profil = obtenirProfil(personneId);
+  const dateFirebase = profil.photoUpdatedAt && typeof profil.photoUpdatedAt.toMillis === "function"
+    ? profil.photoUpdatedAt.toMillis()
+    : Number(profil.photoUpdatedAt) || 0;
+  const photoLocale = obtenirPhotoLocale(personneId);
+  if(photoLocale && (!profil.photo || datePhotoLocale(personneId) > dateFirebase)) return photoLocale;
+  return profil.photo || photoLocale;
+}
+
+function obtenirMetaPersonne(personneId){
+  // La photo Firebase ou le cache local prennent le dessus sur l'image du dépôt.
   const img = IMAGES_PERSONNES[personneId] || {};
   return {
-    avatar: obtenirPhotoLocale(personneId) || profil.photo || img.icone || "",
-    banner: profil.banner || img.banniere || ""
+    avatar: obtenirPhotoProfil(personneId) || img.icone || "",
+    banner: obtenirProfil(personneId).banner || img.banniere || ""
   };
 }
 
@@ -2474,7 +2487,7 @@ function redimensionnerImage(fichier, tailleMax){
         canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob)=> resolve(blob), "image/jpeg", 0.85);
+        canvas.toBlob((blob)=> resolve(blob), "image/jpeg", 0.72);
       };
       img.onerror = reject;
       img.src = e.target.result;
@@ -2492,25 +2505,22 @@ async function gererFichierPhoto(event){
   const personneId = personneActive;
   let blob = null;
   try{
-    blob = await redimensionnerImage(fichier, 400);
+    blob = await redimensionnerImage(fichier, 320);
     if(!blob) throw new Error("La photo n'a pas pu être convertie en image JPEG.");
-    const cheminPhoto = `profils/${personneId}.jpg`;
-    const ref = storage.ref().child(cheminPhoto);
-    await ref.put(blob, { contentType: "image/jpeg" });
-    const url = await ref.getDownloadURL();
+    const dataUrl = await blobEnDataUrl(blob);
 
     const nouvelEtat = { ...etatCourant, profils: { ...etatCourant.profils } };
     nouvelEtat.profils[personneId] = {
       ...obtenirProfil(personneId),
-      photo: url,
-      photoPath: cheminPhoto
+      photo: dataUrl,
+      photoUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     await DOC_REF.set(nouvelEtat);
     etatCourant = nouvelEtat;
     supprimerPhotoLocale(personneId);
     rendre();
   }catch(e){
-    console.error("Erreur d'upload de la photo:", e);
+    console.error("Erreur de sauvegarde Firebase de la photo:", e);
     try{
       if(!blob) throw e;
       const dataUrl = await blobEnDataUrl(blob);
@@ -3292,7 +3302,7 @@ function statsPersonne(personneId){
     faites, validees, valideesParMoi, leveTot, parfaites, serieMax,
     aTheme: profil.theme ? 1 : 0,
     themeNuit: profil.theme === "nuit" ? 1 : 0,
-    aPhoto: (profil.photo || obtenirPhotoLocale(personneId)) ? 1 : 0
+    aPhoto: obtenirPhotoProfil(personneId) ? 1 : 0
   };
 }
 
