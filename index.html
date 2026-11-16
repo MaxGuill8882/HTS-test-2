@@ -20,7 +20,7 @@
 </style>
 </head>
 <body>
-<div id="verre"><img class="bg" alt=""><img class="bg" alt=""><canvas class="filtre" width="1" height="1"></canvas></div>
+<div id="verre"><canvas class="fondcv" width="1" height="1"></canvas><canvas class="filtre" width="1" height="1"></canvas></div>
 
 <script>
 /* ============================================================
@@ -1864,10 +1864,9 @@ body::before{
    gardent seulement la teinte du thème et le texte.
    ============================================================ */
 #verre{position:fixed;inset:0;z-index:0;pointer-events:none}
-#verre .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity var(--fondu,600ms) ease}
-#verre .bg + .bg{opacity:0}
+#verre .fondcv{position:absolute;inset:0;width:100%;height:100%;z-index:1}
 #verre .filtre{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}
-.verre-proxy{position:absolute;left:0;top:0;pointer-events:none;transform-origin:50% 50%;will-change:transform;visibility:hidden}
+.verre-proxy{position:absolute;left:0;top:0;z-index:10;pointer-events:none;transform-origin:50% 50%;will-change:transform;visibility:hidden}
 body::before{display:none}
 .ecran-selection{background:none !important}
 .fond-accueil{display:none}
@@ -3533,16 +3532,47 @@ const TAILLE_POOL = 40;
 const FOND_DEFAUT = 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1800&q=80';
 const racine = document.getElementById('verre');
 const appEl = document.getElementById('app');
-const imgs = Array.from(racine.querySelectorAll('img.bg'));
+const fondCv = racine.querySelector('canvas.fondcv');
+const ctxB = fondCv.getContext('2d');
 const filtre = racine.querySelector('canvas.filtre');
 const ctxF = filtre.getContext('2d');
 const pool = [], attrib = new Map(), libres = [];
-let inst = null, actif = 0, urlCourante = '';
-let requeteFond = 0, minuterieFondu = null, fonduEnCours = false;
-racine.style.setProperty('--fondu', FOND_FONDU_MS + 'ms');
+let inst = null, urlCourante = '';
+let requeteFond = 0, fonduEnCours = false, imgCour = null, imgPrec = null, fondDebut = 0, fondAlpha = 1;
 
-function chargerImg(img, url){
-  return new Promise(ok => { img.crossOrigin = 'anonymous'; img.onload = () => ok(true); img.onerror = () => ok(false); img.src = url; });
+function chargerImg(url){
+  return new Promise(ok => { const img = new Image(); img.crossOrigin = 'anonymous'; img.onload = () => ok(img); img.onerror = () => ok(null); img.src = url; });
+}
+
+/* Le fond est dessiné dans un <canvas> : la librairie de verre ignore l'opacité et l'ordre des <img>
+   (elle reflétait donc toujours la même image), alors qu'un canvas est relu tel quel à chaque image. */
+function tailleFond(){
+  const d = window.devicePixelRatio || 1;
+  const w = Math.max(2, Math.round(innerWidth * d)), h = Math.max(2, Math.round(innerHeight * d));
+  if(fondCv.width !== w || fondCv.height !== h){ fondCv.width = w; fondCv.height = h; return true; }
+  return false;
+}
+function couvrir(img, a){
+  if(!img) return;
+  const W = fondCv.width, H = fondCv.height;
+  const s = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+  const w = img.naturalWidth * s, h = img.naturalHeight * s;
+  ctxB.globalAlpha = a;
+  ctxB.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+  ctxB.globalAlpha = 1;
+}
+function dessinerFond(){
+  ctxB.clearRect(0, 0, fondCv.width, fondCv.height);
+  if(imgPrec && fondAlpha < 1) couvrir(imgPrec, 1);
+  couvrir(imgCour, imgPrec ? fondAlpha : 1);
+  if(inst) inst.markChanged(fondCv);
+}
+function avancerFondu(){
+  if(!fonduEnCours) return;
+  const x = Math.min(1, (performance.now() - fondDebut) / FOND_FONDU_MS);
+  fondAlpha = x * x * (3 - 2 * x);
+  if(x >= 1){ fondAlpha = 1; imgPrec = null; fonduEnCours = false; }
+  dessinerFond();
 }
 
 /* fond : fondu entre la bannière précédente et la nouvelle (durée : FOND_FONDU_MS) */
@@ -3551,23 +3581,15 @@ function changerFond(url){
   if(url === urlCourante) return;
   urlCourante = url;
   const numeroRequete = ++requeteFond;
-  const nouveau = imgs[1 - actif], ancien = imgs[actif];
-  chargerImg(nouveau, url).then(ok => {
-    if(!ok || numeroRequete !== requeteFond || url !== urlCourante) return;
-    clearTimeout(minuterieFondu);
-    nouveau.style.zIndex = 2; ancien.style.zIndex = 1;
-    nouveau.dataset.dynamic = ''; ancien.dataset.dynamic = '';
-    nouveau.style.opacity = 1;
-    actif = 1 - actif;
-    fonduEnCours = true;
-    minuterieFondu = setTimeout(() => {
-      ancien.style.opacity = 0;
-      delete nouveau.dataset.dynamic; delete ancien.dataset.dynamic;
-      if(inst) inst.markChanged();
-      minuterieFondu = null; fonduEnCours = false;
-    }, FOND_FONDU_MS + 60);
+  chargerImg(url).then(img => {
+    if(!img || numeroRequete !== requeteFond || url !== urlCourante) return;
+    imgPrec = imgCour; imgCour = img;
+    fondDebut = performance.now(); fondAlpha = imgPrec ? 0 : 1;
+    fonduEnCours = !!imgPrec;
+    tailleFond(); dessinerFond();
   });
 }
+window.addEventListener('resize', () => { if(tailleFond()) dessinerFond(); });
 
 /* filtre sombre : couleur de base + voile, animés en douceur */
 const mFiltre = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/.exec(FILTRE_SOMBRE) || [0, 8, 10, 18, 0.55];
@@ -3702,6 +3724,7 @@ function boucle(t){
   requestAnimationFrame(boucle);
   const dt = tPrec ? Math.min(t - tPrec, 100) : 16; tPrec = t;
   if(document.hidden) return;
+  avancerFondu();
 
   /* 1) fond = bannière de la personne (au centre du carrousel, ou connectée / en train de saisir son code) */
   const login = vueActuelle === 'login';
@@ -3725,8 +3748,9 @@ function boucle(t){
 }
 
 (async () => {
-  await Promise.all(imgs.map(i => chargerImg(i, FOND_DEFAUT)));
+  imgCour = await chargerImg(FOND_DEFAUT);
   urlCourante = FOND_DEFAUT;
+  tailleFond(); dessinerFond();
   dessinerFiltre();
   for(let i = 0; i < TAILLE_POOL; i++){
     const d = document.createElement('div');
@@ -3740,6 +3764,7 @@ function boucle(t){
   try{
     const { LiquidGlass } = await import('https://cdn.jsdelivr.net/npm/@ybouane/liquidglass/dist/index.js');
     inst = await LiquidGlass.init({ root: racine, glassElements: pool });
+    dessinerFond();
   }catch(e){ console.error('LiquidGlass :', e); }
 })().catch(e => console.error('Fond :', e));
 </script>
