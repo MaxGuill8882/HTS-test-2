@@ -20,7 +20,7 @@
 </style>
 </head>
 <body>
-<div id="verre"><canvas class="fondcv" width="1" height="1"></canvas><canvas class="filtre" width="1" height="1"></canvas></div>
+<div id="verre"><img class="bg" alt=""><img class="bg" alt=""><div class="filtre"></div></div>
 
 <script>
 /* ============================================================
@@ -1306,8 +1306,8 @@ body::before{
 .bouton-edition-profil,
 .option-notif.actif{
   background:linear-gradient(150deg, var(--glass-a), var(--glass-b));
-  -webkit-backdrop-filter:blur(16px) saturate(180%);
-  backdrop-filter:blur(16px) saturate(180%);
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
   border:1px solid var(--glass-bord);
   color:var(--glass-texte);
   box-shadow:
@@ -1583,8 +1583,8 @@ body::before{
 }
 .options-edition-profil .selecteur-theme{
   background:var(--verre-panneau);
-  -webkit-backdrop-filter:blur(16px) saturate(170%);
-  backdrop-filter:blur(16px) saturate(170%);
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
   border:1px solid var(--glass-bord);
   box-shadow:inset 0 1.5px 0 var(--glass-reflet), 0 12px 24px -10px var(--glass-ombre);
   border-radius:999px;
@@ -1725,8 +1725,8 @@ body::before{
   padding:11px 18px 11px 11px;
   border-radius:26px;
   background:linear-gradient(150deg, var(--glass-a), var(--glass-b)), var(--verre-panneau);
-  -webkit-backdrop-filter:blur(20px) saturate(190%);
-  backdrop-filter:blur(20px) saturate(190%);
+  -webkit-backdrop-filter:blur(8px);
+  backdrop-filter:blur(8px);
   border:1px solid var(--glass-bord);
   box-shadow:
     inset 0 1.5px 0 var(--glass-reflet),
@@ -1792,8 +1792,8 @@ body::before{
   padding:22px 18px 18px;
   border-radius:30px;
   background:linear-gradient(150deg, var(--glass-a), var(--glass-b)), var(--verre-panneau);
-  -webkit-backdrop-filter:blur(24px) saturate(180%);
-  backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(8px);
+  backdrop-filter:blur(8px);
   border:1px solid var(--glass-bord);
   box-shadow:
     inset 0 1.5px 0 var(--glass-reflet),
@@ -1859,14 +1859,13 @@ body::before{
 }
 
 /* ============================================================
-   RENDU WEBGL — liquid glass via @ybouane/liquidglass
-   Le verre est dessiné dans #verre (fond + proxys). Les vrais éléments
-   gardent seulement la teinte du thème et le texte.
+   FAUX VERRE (CSS pur, sans flou ni WebGL) — même style partout :
+   dégradé teinté + reflet en haut + liseré clair + ombre douce.
    ============================================================ */
 #verre{position:fixed;inset:0;z-index:0;pointer-events:none}
-#verre .fondcv{position:absolute;inset:0;width:100%;height:100%;z-index:1}
-#verre .filtre{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}
-.verre-proxy{position:absolute;left:0;top:0;z-index:10;pointer-events:none;transform-origin:50% 50%;will-change:transform;visibility:hidden}
+#verre .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity var(--fondu,600ms) ease}
+#verre .bg + .bg{opacity:0}
+#verre .filtre{position:absolute;inset:0;z-index:5;pointer-events:none;transition:background-color .5s ease}
 body::before{display:none}
 .ecran-selection{background:none !important}
 .fond-accueil{display:none}
@@ -1918,10 +1917,18 @@ body::before{display:none}
    ============================================================ */
 #verre{z-index:-1}
 
+body :is(.deconnexion,.selecteur-jour .fleche,.bouton-aujourdhui,.bouton-succes,.touche,.ecran-pin .retour,.bouton-valider,.bouton-option-edition,.bouton-edition-profil,.badge-camera,.options-edition-profil .selecteur-theme,.famille-card){
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.5),
+    inset 0 0 0 1px rgba(255,255,255,.2),
+    inset 0 -8px 14px rgba(0,0,0,.10),
+    0 6px 16px rgba(0,0,0,.26) !important;
+}
+
 .deconnexion,.selecteur-jour .fleche,.bouton-aujourdhui,.bouton-succes,.touche,.ecran-pin .retour,
 .bouton-option-edition,.badge-camera,.bouton-valider,.bouton-edition-profil,
 .options-edition-profil .selecteur-theme{
-  background:linear-gradient(150deg, var(--verre-sombre-a, rgba(30,40,70,.66)), var(--verre-sombre-b, rgba(30,40,70,.46))) !important;
+  background:linear-gradient(160deg, rgba(255,255,255,.28), rgba(255,255,255,0) 55%), linear-gradient(150deg, var(--verre-sombre-a, rgba(30,40,70,.66)), var(--verre-sombre-b, rgba(30,40,70,.46))) !important;
   color:#fff !important;
   text-shadow:0 1px 3px rgba(0,0,0,.55);
   font-weight:700;
@@ -3519,265 +3526,71 @@ async function demarrer(){
 
 demarrer();
 </script>
-<script type="module">
-/* Liquid glass : librairie @ybouane/liquidglass (WebGL).
-   Les éléments de verre doivent être des enfants directs de la racine #verre : on y place donc un
-   « proxy » vide par bouton/carte, calé sur la position du vrai élément (qui reste cliquable).
+<script>
+/* Fond d'écran : image + fondu, chargés seulement DELAI_FOND_MS après qu'une personne est sélectionnée
+   (centrée au carrousel, ou connectée). Pas de chargement pendant qu'on fait défiler. */
+(() => {
+  const DELAI_FOND_MS = 300;
+  const FOND_DEFAUT = 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1800&q=80';
+  const racine = document.getElementById('verre');
+  const imgs = Array.from(racine.querySelectorAll('img.bg'));
+  const filtre = racine.querySelector('.filtre');
+  const mFiltre = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/.exec(FILTRE_SOMBRE) || [0, 8, 10, 18, 0.55];
+  let actif = 0, urlCourante = '', requete = 0, minuterie = null, cible = null, idFond = null, derniereCouleur = '';
+  racine.style.setProperty('--fondu', FOND_FONDU_MS + 'ms');
 
-   OPTIMISATIONS
-   - Résolution du verre plafonnée (DPR_MAX) : 2 à 4 fois moins de pixels sur les écrans « retina ».
-   - Le proxy garde la taille de mise en page de l'élément ; position et échelle passent par transform.
-     (changer sa taille à chaque image forçait la librairie à réallouer le canvas et refaire une capture HTML).
-   - Chaque élément garde « son » proxy tant qu'il existe ; l'opacité passe par le CSS, pas par la config.
-   - Le filtre sombre est un <canvas> : la librairie le redessine toujours à jour (plus de capture HTML).
-   - Qualité adaptative : si l'appareil est lent pendant un mouvement, on coupe d'abord le flou, puis le verre
-     pendant le mouvement (il réapparaît en fondu à l'arrêt). Forcer : window.__qualiteVerre = 2 | 1 | 0. */
-const DPR_MAX = 1.5;
-try{
-  const d = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio');
-  if(d && d.get) Object.defineProperty(window, 'devicePixelRatio', { configurable:true, get: () => Math.min(d.get.call(window) || 1, DPR_MAX) });
-}catch(e){ console.warn('DPR non plafonné :', e); }
-
-const SEL = '.famille-card,.deconnexion,.fleche,.bouton-aujourdhui,.bouton-succes,.touche,.retour,.bouton-option-edition,.bouton-edition-profil,.bouton-valider,.badge-camera,.pastille-theme,.selecteur-theme';
-const TAILLE_POOL = 40;
-const FOND_DEFAUT = 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1800&q=80';
-const racine = document.getElementById('verre');
-const appEl = document.getElementById('app');
-const fondCv = racine.querySelector('canvas.fondcv');
-const ctxB = fondCv.getContext('2d');
-const filtre = racine.querySelector('canvas.filtre');
-const ctxF = filtre.getContext('2d');
-const pool = [], attrib = new Map(), libres = [];
-let inst = null, urlCourante = '';
-let requeteFond = 0, fonduEnCours = false, imgCour = null, imgPrec = null, fondDebut = 0, fondAlpha = 1;
-
-function chargerImg(url){
-  return new Promise(ok => { const img = new Image(); img.crossOrigin = 'anonymous'; img.onload = () => ok(img); img.onerror = () => ok(null); img.src = url; });
-}
-
-/* Le fond est dessiné dans un <canvas> : la librairie de verre ignore l'opacité et l'ordre des <img>
-   (elle reflétait donc toujours la même image), alors qu'un canvas est relu tel quel à chaque image. */
-function tailleFond(){
-  const d = window.devicePixelRatio || 1;
-  const w = Math.max(2, Math.round(innerWidth * d)), h = Math.max(2, Math.round(innerHeight * d));
-  if(fondCv.width !== w || fondCv.height !== h){ fondCv.width = w; fondCv.height = h; return true; }
-  return false;
-}
-function couvrir(img, a){
-  if(!img) return;
-  const W = fondCv.width, H = fondCv.height;
-  const s = Math.max(W / img.naturalWidth, H / img.naturalHeight);
-  const w = img.naturalWidth * s, h = img.naturalHeight * s;
-  ctxB.globalAlpha = a;
-  ctxB.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
-  ctxB.globalAlpha = 1;
-}
-function dessinerFond(){
-  ctxB.clearRect(0, 0, fondCv.width, fondCv.height);
-  if(imgPrec && fondAlpha < 1) couvrir(imgPrec, 1);
-  couvrir(imgCour, imgPrec ? fondAlpha : 1);
-  if(inst && vueActuelle !== 'login') inst.markChanged(fondCv);   // accueil : pas de verre WebGL
-}
-function avancerFondu(){
-  if(!fonduEnCours) return;
-  const x = Math.min(1, (performance.now() - fondDebut) / FOND_FONDU_MS);
-  fondAlpha = x * x * (3 - 2 * x);
-  if(x >= 1){ fondAlpha = 1; imgPrec = null; fonduEnCours = false; }
-  dessinerFond();
-}
-
-/* fond : fondu entre la bannière précédente et la nouvelle (durée : FOND_FONDU_MS) */
-function changerFond(url){
-  url = url || FOND_DEFAUT;
-  if(url === urlCourante) return;
-  urlCourante = url;
-  const numeroRequete = ++requeteFond;
-  chargerImg(url).then(img => {
-    if(!img || numeroRequete !== requeteFond || url !== urlCourante) return;
-    imgPrec = imgCour; imgCour = img;
-    fondDebut = performance.now(); fondAlpha = imgPrec ? 0 : 1;
-    fonduEnCours = !!imgPrec;
-    tailleFond(); dessinerFond();
-  });
-}
-window.addEventListener('resize', () => { if(tailleFond()) dessinerFond(); });
-
-/* filtre sombre : couleur de base + voile, animés en douceur */
-const mFiltre = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/.exec(FILTRE_SOMBRE) || [0, 8, 10, 18, 0.55];
-const F = { a: 0, v: 0, ta: 0, tv: 0, init: false };
-function dessinerFiltre(){
-  ctxF.clearRect(0, 0, 1, 1);
-  ctxF.fillStyle = `rgba(${mFiltre[1]},${mFiltre[2]},${mFiltre[3]},${F.a.toFixed(3)})`; ctxF.fillRect(0, 0, 1, 1);
-  ctxF.fillStyle = `rgba(0,0,0,${F.v.toFixed(3)})`; ctxF.fillRect(0, 0, 1, 1);
-}
-function majFiltre(dt, id, login){
-  const t = THEMES[obtenirProfil(id).theme] || THEMES.bleu;
-  F.ta = t.sombre ? (parseFloat(mFiltre[4]) || 0.55) : 0;
-  F.tv = login ? 0 : 0.28;
-  if(!F.init){ F.init = true; F.a = F.ta; F.v = F.tv; dessinerFiltre(); return; }
-  if(F.a === F.ta && F.v === F.tv) return;
-  const k = 1 - Math.exp(-dt / 110);
-  F.a += (F.ta - F.a) * k; F.v += (F.tv - F.v) * k;
-  if(Math.abs(F.ta - F.a) < 0.004) F.a = F.ta;
-  if(Math.abs(F.tv - F.v) < 0.004) F.v = F.tv;
-  dessinerFiltre();
-  if(inst) inst.markChanged(filtre);
-}
-
-/* ---- qualité adaptative ---- */
-const Q = { niv: 2, lents: 0, ema: 16.7 };
-function enMouvement(){
-  if(CAR.raf !== null || CAR.drag || enTransition || fonduEnCours) return true;
-  try{ return appEl.getAnimations({ subtree:true }).some(a => a.playState === 'running'); }catch(e){ return false; }
-}
-function gouverner(dt, mv){
-  if(typeof window.__qualiteVerre === 'number'){ Q.niv = window.__qualiteVerre; return; }
-  if(!mv){ Q.lents = 0; return; }
-  Q.ema = Q.ema * 0.9 + dt * 0.1;
-  if(Q.ema > 30){
-    if(++Q.lents >= 24 && Q.niv > 0){ Q.niv--; Q.lents = 0; Q.ema = 16.7; console.info('Verre : qualité réduite (niveau ' + Q.niv + ')'); }
-  } else Q.lents = Math.max(0, Q.lents - 1);
-}
-
-let domSale = true, candidats = [];
-new MutationObserver(() => { domSale = true; }).observe(appEl, { childList:true, subtree:true });
-
-function opaciteEff(el, memo){
-  let o = 1;
-  for(let n = el; n && n !== document.body; n = n.parentElement){
-    let v = memo.get(n);
-    if(v === undefined){ v = parseFloat(getComputedStyle(n).opacity); memo.set(n, v); }
-    o *= v;
+  function changerFond(url){
+    url = url || FOND_DEFAUT;
+    if(url === urlCourante) return;
+    urlCourante = url;
+    const n = ++requete, nouveau = imgs[1 - actif], ancien = imgs[actif];
+    const test = new Image();
+    test.onload = () => {
+      if(n !== requete) return;
+      nouveau.src = url;
+      nouveau.style.zIndex = 2; ancien.style.zIndex = 1;
+      nouveau.style.opacity = 1;
+      actif = 1 - actif;
+      setTimeout(() => { if(n === requete) ancien.style.opacity = 0; }, FOND_FONDU_MS + 60);
+    };
+    test.src = url;   // préchargé, puis affiché avec le fondu CSS
   }
-  return o;
-}
 
-function cacherProxy(p){
-  if(p._vis){ p._vis = false; p.style.visibility = 'hidden'; }
-}
-
-function prendreProxy(w0, h0, tx, ty){
-  if(!libres.length) return null;
-  let i = libres.findIndex(p => p._w === w0 && p._h === h0 && Math.abs(p._tx - tx) < 1 && Math.abs(p._ty - ty) < 1);
-  if(i < 0) i = libres.findIndex(p => p._w === w0 && p._h === h0);
-  if(i < 0) i = libres.length - 1;
-  return libres.splice(i, 1)[0];
-}
-
-function placer(p, v, flou, dt){
-  const { el, r, w0, h0, cs, o, tx, ty } = v;
-  if(p._w !== w0 || p._h !== h0){ p._w = w0; p._h = h0; p.style.width = w0 + 'px'; p.style.height = h0 + 'px'; }
-  const sx = r.width / w0, sy = r.height / h0;
-  if(Math.abs(tx - p._tx) > 0.05 || Math.abs(ty - p._ty) > 0.05 || Math.abs(sx - p._sx) > 0.0005 || Math.abs(sy - p._sy) > 0.0005){
-    p._tx = tx; p._ty = ty; p._sx = sx; p._sy = sy;
-    p.style.transform = `translate3d(${tx.toFixed(2)}px,${ty.toFixed(2)}px,0) scale(${sx.toFixed(4)},${sy.toFixed(4)})`;
+  /* filtre = base sombre (thème sombre) + voile .28 (hors accueil), fusionnés en une seule couleur */
+  function majFiltre(){
+    const t = idFond && (THEMES[obtenirProfil(idFond).theme] || THEMES.bleu);
+    const a = t && t.sombre ? (parseFloat(mFiltre[4]) || 0.55) : 0;
+    const v = vueActuelle === 'login' ? 0 : 0.28;
+    const alpha = 1 - (1 - a) * (1 - v);
+    const k = alpha > 0 ? (a * (1 - v)) / alpha : 0;
+    const c = `rgba(${Math.round(mFiltre[1] * k)},${Math.round(mFiltre[2] * k)},${Math.round(mFiltre[3] * k)},${alpha.toFixed(3)})`;
+    if(c !== derniereCouleur){ derniereCouleur = c; filtre.style.backgroundColor = c; }
   }
-  const base = Math.min(w0, h0) / 2;
-  let rad = cs.borderTopLeftRadius;
-  rad = rad.includes('%') ? base * parseFloat(rad) / 50 : parseFloat(rad);
-  rad = Math.max(2, Math.min(rad || 0, base));
-  const bulle = el.matches('.pastille-theme,.badge-camera');
-  const zr = Math.max(3, Math.min(rad, bulle ? rad : 30));
-  const cle = rad.toFixed(1) + '|' + zr.toFixed(1) + '|' + flou + '|' + (bulle ? 1 : 0);
-  if(p._cle !== cle){
-    p._cle = cle;
-    p.dataset.config = JSON.stringify({ blurAmount: flou, cornerRadius: +rad.toFixed(1), zRadius: +zr.toFixed(1), shadowOpacity: 0.22, shadowSpread: 8, bevelMode: bulle ? 1 : 0 });
-  }
-  if(!p._vis){ p._vis = true; p._f = 0; p.style.visibility = 'visible'; }
-  p._f = Math.min(1, p._f + dt / 140);       // apparition en fondu
-  const op = +(o * p._f).toFixed(2);
-  if(p._op !== op){ p._op = op; p.style.opacity = op; }
-  const z = 10 + (parseInt(cs.zIndex) || 0);
-  if(p._z !== z){ p._z = z; p.style.zIndex = z; }
-}
 
-function synchroniser(dt, mv){
-  if(domSale){ candidats = Array.from(document.querySelectorAll(SEL)); domSale = false; }
-  const niv = Q.niv;
-  const flou = (mv && niv <= 1) ? 0 : 0.2;
-  const vus = [];
-  if(!(mv && niv === 0) && vueActuelle !== 'login'){   // accueil : verre remplacé par du CSS léger
-    const memo = new Map();
-    const n = obtenirIdsPersonnes().length;
-    for(const el of candidats){
-      if(!el.isConnected) continue;
-      const cs = getComputedStyle(el);
-      if(cs.visibility === 'hidden' || cs.display === 'none') continue;
-      const w0 = el.offsetWidth, h0 = el.offsetHeight;
-      if(w0 < 2 || h0 < 2) continue;
-      const r = el.getBoundingClientRect();
-      if(r.bottom < -20 || r.top > innerHeight + 20 || r.right < -20 || r.left > innerWidth + 20) continue;
-      const o = opaciteEff(el, memo);
-      if(o < 0.01) continue;
-      if(mv && niv <= 1 && el.classList.contains('famille-card') && Math.abs(carEcart(Number(el.dataset.index), CAR.pos, n)) > 1.45) continue;
-      vus.push({ el, r, w0, h0, cs, o, tx: r.left + r.width / 2 - w0 / 2, ty: r.top + r.height / 2 - h0 / 2 });
+  function tick(){
+    if(document.hidden) return;
+    let id = null;
+    if(vueActuelle === 'login'){
+      const ids = obtenirIdsPersonnes();
+      if(CAR.pos !== null && ids.length) id = ids[carModulo(Math.round(CAR.pos), ids.length)];
+    } else id = personneActive;
+    if(id && id !== cible){
+      cible = id;
+      clearTimeout(minuterie);
+      minuterie = setTimeout(() => {
+        idFond = id;
+        changerFond(obtenirMetaPersonne(id).banner);
+        majFiltre();
+      }, DELAI_FOND_MS);
     }
+    majFiltre();
   }
-  const utilises = new Set(vus.map(v => v.el));
-  for(const [el, p] of attrib){
-    if(!utilises.has(el)){ attrib.delete(el); cacherProxy(p); libres.push(p); }
-  }
-  let nouveaux = 0;
-  for(const v of vus){
-    let p = attrib.get(v.el);
-    if(!p){
-      if(nouveaux >= 5) continue;            // on étale les nouveaux verres sur plusieurs images
-      p = prendreProxy(v.w0, v.h0, v.tx, v.ty);
-      if(!p) continue;
-      attrib.set(v.el, p); nouveaux++;
-    }
-    placer(p, v, flou, dt);
-  }
-}
 
-let tPrec = 0;
-function boucle(t){
-  requestAnimationFrame(boucle);
-  const dt = tPrec ? Math.min(t - tPrec, 100) : 16; tPrec = t;
-  if(document.hidden) return;
-  avancerFondu();
-
-  /* 1) fond = bannière de la personne (au centre du carrousel, ou connectée / en train de saisir son code) */
-  const login = vueActuelle === 'login';
-  let id = null;
-  if(login){
-    const ids = obtenirIdsPersonnes();
-    if(CAR.pos !== null && ids.length) id = ids[carModulo(Math.round(CAR.pos), ids.length)];
-  } else {
-    id = personneActive;
-  }
-  if(id){
-    changerFond(obtenirMetaPersonne(id).banner);
-    majFiltre(dt, id, login);
-  }
-  if(!inst) return;
-
-  /* 2) un proxy de verre par élément visible */
-  const mv = enMouvement();
-  gouverner(dt, mv);
-  synchroniser(dt, mv);
-}
-
-(async () => {
-  imgCour = await chargerImg(FOND_DEFAUT);
-  urlCourante = FOND_DEFAUT;
-  tailleFond(); dessinerFond();
-  dessinerFiltre();
-  for(let i = 0; i < TAILLE_POOL; i++){
-    const d = document.createElement('div');
-    d.className = 'verre-proxy';
-    d.style.cssText = 'width:4px;height:4px';
-    d._tx = d._ty = d._sx = d._sy = 1e9; d._vis = false; d._w = d._h = 0;   // jamais NaN : la 1re position est toujours appliquée
-    racine.appendChild(d);
-    pool.push(d); libres.push(d);
-  }
-  requestAnimationFrame(boucle); // le fond fonctionne même si la librairie ne se charge pas
-  try{
-    const { LiquidGlass } = await import('https://cdn.jsdelivr.net/npm/@ybouane/liquidglass/dist/index.js');
-    inst = await LiquidGlass.init({ root: racine, glassElements: pool });
-    dessinerFond();
-  }catch(e){ console.error('LiquidGlass :', e); }
-})().catch(e => console.error('Fond :', e));
+  const premiere = new Image();
+  premiere.onload = () => { imgs[0].src = FOND_DEFAUT; urlCourante = FOND_DEFAUT; };
+  premiere.src = FOND_DEFAUT;
+  setInterval(tick, 100);
+})();
 </script>
 </body>
 </html>
