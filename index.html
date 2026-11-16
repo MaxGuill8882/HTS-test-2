@@ -20,7 +20,7 @@
 </style>
 </head>
 <body>
-<div id="verre"><img class="bg" alt=""><img class="bg" alt=""><div class="filtre"></div></div>
+<div id="verre"><img class="bg" alt=""><img class="bg" alt=""><canvas class="filtre" width="1" height="1"></canvas></div>
 
 <script>
 /* ============================================================
@@ -383,6 +383,13 @@ const ICONES = {
       <button type="button" class="option-notif" onclick="choisirSourcePhoto('import')">Importer une image</button>
     </div>
     <button type="button" class="btn-annuler" style="width:100%;margin-top:14px;" onclick="fermerChoixPhoto()">Annuler</button>
+  </div>
+</div>
+<div id="fond-modale-photo-limite" class="fond-modale" style="display:none;" onclick="if(event.target===this) fermerPhotoLimite()">
+  <div class="boite-modale" role="alertdialog" aria-modal="true">
+    <div class="icone-modale">📷</div>
+    <p id="texte-photo-limite"></p>
+    <button type="button" class="btn-confirmer" style="width:100%;margin-top:14px;" onclick="fermerPhotoLimite()">OK</button>
   </div>
 </div>
 <input type="file" id="input-photo-camera" accept="image/*" capture="environment" style="display:none;" onchange="gererFichierPhoto(event)">
@@ -1311,7 +1318,7 @@ body::before{
     0 2px 8px rgba(15,23,42,0.12);
   overflow:hidden;
   isolation:isolate;
-  transition:transform .32s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease, filter .3s ease, background .3s ease;
+  transition:transform .15s cubic-bezier(.2,.8,.3,1), box-shadow .18s ease, background .18s ease;
   -webkit-tap-highlight-color:transparent;
   user-select:none; -webkit-user-select:none;
 }
@@ -1388,7 +1395,6 @@ body::before{
 .bouton-edition-profil:hover,
 .option-notif.actif:hover{
   transform:translateY(-1px) scale(1.04);
-  filter:brightness(1.05) saturate(1.12);
 }
 .deconnexion:hover::after,
 .selecteur-jour .fleche:hover::after,
@@ -1426,7 +1432,6 @@ body::before{
 .bouton-edition-profil:active,
 .option-notif.actif:active{
   transform:scale(.93);
-  filter:brightness(.98);
   box-shadow:
     inset 0 2px 8px rgba(0,0,0,0.16),
     inset 0 1px 0 var(--glass-reflet),
@@ -1563,7 +1568,7 @@ body::before{
     inset 0 2px 3px rgba(255,255,255,0.85),
     0 8px 16px -6px var(--c, #3B82F6),
     0 2px 6px rgba(15,23,42,0.18);
-  transition:transform .32s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease;
+  transition:transform .18s cubic-bezier(.2,.8,.3,1), box-shadow .2s ease;
 }
 @media (hover:hover){ .pastille-theme:hover{ transform:scale(1.12); } }
 .pastille-theme:active{ transform:scale(.9); }
@@ -1616,15 +1621,15 @@ body::before{
 }
 
 /* écran de sélection */
-.ecran-selection.anim-entree{ animation:anim-zoom-ecran .55s cubic-bezier(.22,1,.36,1) backwards; }
-.ecran-selection.anim-entree .selection-header{ animation:anim-descendre .6s cubic-bezier(.22,1,.36,1) .08s backwards; }
-.ecran-selection.anim-entree .carousel-famille{ animation:anim-monter .7s cubic-bezier(.22,1,.36,1) .12s backwards; }
-.ecran-selection.sortie{ animation:anim-sortie-ecran .2s ease-in forwards; }
+.ecran-selection.anim-entree{ animation:anim-zoom-ecran .3s cubic-bezier(.22,1,.36,1) backwards; }
+.ecran-selection.anim-entree .selection-header{ animation:anim-descendre .32s cubic-bezier(.22,1,.36,1) .04s backwards; }
+.ecran-selection.anim-entree .carousel-famille{ animation:anim-monter .36s cubic-bezier(.22,1,.36,1) .06s backwards; }
+.ecran-selection.sortie{ animation:anim-sortie-ecran .12s ease-in forwards; }
 
 /* écran du code */
 .ecran-pin.anim-entree > *{
-  animation:anim-droite .5s cubic-bezier(.22,1,.36,1) backwards;
-  animation-delay:calc(var(--i,0) * 55ms);
+  animation:anim-droite .28s cubic-bezier(.22,1,.36,1) backwards;
+  animation-delay:calc(var(--i,0) * 28ms);
 }
 .ecran-pin.anim-entree.entree-depuis-taches > *{ animation-name:anim-gauche; }
 .ecran-pin.anim-entree > *:nth-child(1){ --i:0; }
@@ -1635,8 +1640,8 @@ body::before{
 .ecran-pin.anim-entree > *:nth-child(6){ --i:5; }
 .ecran-pin.anim-entree > *:nth-child(7){ --i:6; }
 .ecran-pin.anim-entree .pavé-numerique > *{
-  animation:anim-pop-in .45s cubic-bezier(.34,1.56,.64,1) backwards;
-  animation-delay:calc(160ms + var(--k,0) * 28ms);
+  animation:anim-pop-in .26s cubic-bezier(.34,1.4,.64,1) backwards;
+  animation-delay:calc(70ms + var(--k,0) * 14ms);
 }
 .ecran-pin.anim-entree .pavé-numerique > *:nth-child(1){ --k:1; }
 .ecran-pin.anim-entree .pavé-numerique > *:nth-child(2){ --k:2; }
@@ -1650,13 +1655,13 @@ body::before{
 .ecran-pin.anim-entree .pavé-numerique > *:nth-child(10){ --k:10; }
 .ecran-pin.anim-entree .pavé-numerique > *:nth-child(11){ --k:11; }
 .ecran-pin.anim-entree .pavé-numerique > *:nth-child(12){ --k:12; }
-.ecran-pin.sortie > *{ animation:anim-sortie-gauche .2s ease-in forwards; }
+.ecran-pin.sortie > *{ animation:anim-sortie-gauche .12s ease-in forwards; }
 .pin-points.secoue{ animation:anim-secouer .45s ease; }
 
 /* écran des tâches : les blocs montent l'un après l'autre */
 .ecran-taches.anim-entree > *{
-  animation:anim-monter .55s cubic-bezier(.22,1,.36,1) backwards;
-  animation-delay:calc(var(--i,0) * 75ms);
+  animation:anim-monter .3s cubic-bezier(.22,1,.36,1) backwards;
+  animation-delay:calc(var(--i,0) * 38ms);
 }
 .ecran-taches.anim-entree > *:nth-child(1){ --i:0; }
 .ecran-taches.anim-entree > *:nth-child(2){ --i:1; }
@@ -1664,18 +1669,18 @@ body::before{
 .ecran-taches.anim-entree > *:nth-child(4){ --i:3; }
 .ecran-taches.anim-entree > *:nth-child(5){ --i:4; }
 .ecran-taches.anim-entree > *:nth-child(6){ --i:5; }
-.ecran-taches.sortie > *{ animation:anim-sortie-bas .2s ease-in forwards; }
+.ecran-taches.sortie > *{ animation:anim-sortie-bas .12s ease-in forwards; }
 
 /* changement de jour : le contenu glisse du côté où l'on va */
-.contenu-jour.glisse-suivant{ animation:anim-jour-suivant .42s cubic-bezier(.22,1,.36,1) backwards; }
-.contenu-jour.glisse-precedent{ animation:anim-jour-precedent .42s cubic-bezier(.22,1,.36,1) backwards; }
-.contenu-jour.glisse-fondu{ animation:anim-fondu .4s ease backwards; }
-.date-texte.change-suivant{ animation:anim-jour-suivant .38s cubic-bezier(.22,1,.36,1) backwards; }
-.date-texte.change-precedent{ animation:anim-jour-precedent .38s cubic-bezier(.22,1,.36,1) backwards; }
-.date-texte.change-fondu{ animation:anim-fondu .35s ease backwards; }
+.contenu-jour.glisse-suivant{ animation:anim-jour-suivant .26s cubic-bezier(.22,1,.36,1) backwards; }
+.contenu-jour.glisse-precedent{ animation:anim-jour-precedent .26s cubic-bezier(.22,1,.36,1) backwards; }
+.contenu-jour.glisse-fondu{ animation:anim-fondu .24s ease backwards; }
+.date-texte.change-suivant{ animation:anim-jour-suivant .24s cubic-bezier(.22,1,.36,1) backwards; }
+.date-texte.change-precedent{ animation:anim-jour-precedent .24s cubic-bezier(.22,1,.36,1) backwards; }
+.date-texte.change-fondu{ animation:anim-fondu .22s ease backwards; }
 .contenu-jour[class*="glisse-"] .tache{
-  animation:anim-monter .45s cubic-bezier(.22,1,.36,1) backwards;
-  animation-delay:calc(60ms + var(--k,0) * 45ms);
+  animation:anim-monter .26s cubic-bezier(.22,1,.36,1) backwards;
+  animation-delay:calc(30ms + var(--k,0) * 25ms);
 }
 .contenu-jour[class*="glisse-"] .tache:nth-child(1){ --k:1; }
 .contenu-jour[class*="glisse-"] .tache:nth-child(2){ --k:2; }
@@ -1689,13 +1694,13 @@ body::before{
 .contenu-jour[class*="glisse-"] .tache:nth-child(10){ --k:10; }
 
 /* case qui se coche / se valide */
-.case.anim-pop{ animation:anim-case .55s cubic-bezier(.34,1.56,.64,1); }
-.case.valide.anim-pop{ animation:anim-case .55s cubic-bezier(.34,1.56,.64,1), anim-onde .8s ease-out; }
+.case.anim-pop{ animation:anim-case .36s cubic-bezier(.34,1.56,.64,1); }
+.case.valide.anim-pop{ animation:anim-case .36s cubic-bezier(.34,1.56,.64,1), anim-onde .55s ease-out; }
 
 /* fenêtres modales */
-.fond-modale{ animation:anim-fondu .22s ease; }
+.fond-modale{ animation:anim-fondu .15s ease; }
 .boite-modale,
-.boite-succes{ animation:anim-pop-in .38s cubic-bezier(.34,1.56,.64,1); }
+.boite-succes{ animation:anim-pop-in .24s cubic-bezier(.34,1.56,.64,1); }
 
 #app{ overflow-x:clip; }
 
@@ -1728,7 +1733,7 @@ body::before{
     inset 0 -12px 18px -10px rgba(255,255,255,0.25),
     0 18px 36px -12px var(--glass-ombre),
     0 4px 14px rgba(15,23,42,0.18);
-  animation:toast-entree .7s cubic-bezier(.34,1.56,.64,1) both;
+  animation:toast-entree .42s cubic-bezier(.34,1.4,.64,1) both;
 }
 .toast-succes::before{
   content:""; position:absolute; left:6%; right:6%; top:0; height:46%;
@@ -1743,7 +1748,7 @@ body::before{
   animation:toast-brillance 1.4s ease .45s 1 both;
   pointer-events:none; z-index:-1;
 }
-.toast-succes.sortie{ animation:toast-sortie .42s cubic-bezier(.5,0,.75,0) forwards; }
+.toast-succes.sortie{ animation:toast-sortie .28s cubic-bezier(.5,0,.75,0) forwards; }
 @keyframes toast-entree{
   0%{ opacity:0; transform:translate3d(0,-90px,0) scale(.82); }
   100%{ opacity:1; transform:none; }
@@ -1859,10 +1864,10 @@ body::before{
    gardent seulement la teinte du thème et le texte.
    ============================================================ */
 #verre{position:fixed;inset:0;z-index:0;pointer-events:none}
-#verre .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .6s ease}
+#verre .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity var(--fondu,600ms) ease}
 #verre .bg + .bg{opacity:0}
-#verre .filtre{position:absolute;inset:0;z-index:5;background-color:var(--filtre-fond);transition:background-color .5s ease}
-.verre-proxy{position:absolute;pointer-events:none}
+#verre .filtre{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}
+.verre-proxy{position:absolute;left:0;top:0;pointer-events:none;transform-origin:50% 50%;will-change:transform;visibility:hidden}
 body::before{display:none}
 .ecran-selection{background:none !important}
 .fond-accueil{display:none}
@@ -1902,7 +1907,6 @@ body::before{display:none}
    CONTRASTE — texte et icônes toujours lisibles sur la photo de fond
    ============================================================ */
 #verre{z-index:-1}
-#verre .filtre{background-image:linear-gradient(rgba(0,0,0,var(--voile,.28)),rgba(0,0,0,var(--voile,.28)))}
 
 .deconnexion,.selecteur-jour .fleche,.bouton-aujourdhui,.bouton-succes,.touche,.ecran-pin .retour,
 .bouton-option-edition,.badge-camera,.bouton-valider,.bouton-edition-profil,
@@ -1982,7 +1986,7 @@ function allerVue(changer){
   if(!ecran || mouvementReduit()){ changer(); return; }
   enTransition = true;
   ecran.classList.add('sortie');
-  setTimeout(()=>{ enTransition = false; changer(); }, 200);
+  setTimeout(()=>{ enTransition = false; changer(); }, 120);
 }
 
 /* Après un rendu : si la page a changé, l'écran joue son animation d'entrée */
@@ -1994,7 +1998,7 @@ function appliquerEntree(app){
   const ecran = app.firstElementChild;
   if(!ecran) return;
   ecran.classList.add('anim-entree', 'entree-depuis-' + (precedente || 'demarrage'));
-  setTimeout(()=>{ ecran.classList.remove('anim-entree', 'entree-depuis-' + (precedente || 'demarrage')); }, 1400);
+  setTimeout(()=>{ ecran.classList.remove('anim-entree', 'entree-depuis-' + (precedente || 'demarrage')); }, 700);
 }
 
 /* ---- Écoute en temps réel de Firestore ---- */
@@ -2132,7 +2136,7 @@ function rendreAvatarEditable(personneId){
   const interieur = rendreAvatar(personneId, "avatar-grand").replace('class="avatar avatar-grand"', 'class="avatar avatar-grand" onclick="declencherChangementPhoto()"');
   return `<div style="position:relative;display:inline-block;">
       ${interieur}
-      <div class="badge-camera">${ICONES.camera}</div>
+      <div class="badge-camera"${tempsRestantPhoto(personneId) > 0 ? ' style="opacity:.55"' : ''}>${ICONES.camera}</div>
     </div>`;
 }
 
@@ -2188,7 +2192,7 @@ function verifierInactivite(){
 function enregistrerActivite(){
   if(vueActuelle !== "taches" || !personneActive || deconnexionInactiviteEnCours) return;
   derniereActiviteSession = Date.now();
-  verifierInactivite();
+  if(intervalleInactivite) verifierInactivite(); // la fenêtre d'avertissement est ouverte : on la ferme
 }
 
 function demarrerSurveillanceInactivite(){
@@ -2219,12 +2223,16 @@ function retourLogin(){
   });
 }
 
+function majPointsPin(){
+  document.querySelectorAll('.pin-point').forEach((pt, i)=> pt.classList.toggle('rempli', i < pinSaisi.length));
+}
+
 function saisirChiffre(chiffre){
   if(pinSaisi.length>=4) return;
   pinSaisi += chiffre;
   if(pinSaisi.length===4){
     if(pinSaisi === PERSONNES[personneActive].pin){
-      rendre(); // le 4e point se remplit, puis on change de page
+      majPointsPin(); // le 4e point se remplit, puis on change de page
       setTimeout(()=>{
         allerVue(()=>{
           vueActuelle = "taches";
@@ -2233,18 +2241,18 @@ function saisirChiffre(chiffre){
           rendre();
           demarrerSurveillanceInactivite();
         });
-      }, 170);
+      }, 90);
       return;
     } else {
-      setTimeout(()=>{ pinSaisi=""; rendre(); const pts = document.querySelector('.pin-points'); if(pts) pts.classList.add('secoue'); document.getElementById("erreur-pin").textContent = PERSONNES[personneActive].horsConfig ? "Fichier de configuration introuvable (config/" + personneActive + ".json)." : "Code incorrect, réessaie."; }, 250);
+      setTimeout(()=>{ pinSaisi=""; majPointsPin(); const pts = document.querySelector('.pin-points'); if(pts){ pts.classList.remove('secoue'); void pts.offsetWidth; pts.classList.add('secoue'); } document.getElementById("erreur-pin").textContent = PERSONNES[personneActive].horsConfig ? "Fichier de configuration introuvable (config/" + personneActive + ".json)." : "Code incorrect, réessaie."; }, 250);
     }
   }
-  rendre();
+  majPointsPin();
 }
 
 function effacerChiffre(){
   pinSaisi = pinSaisi.slice(0,-1);
-  rendre();
+  majPointsPin();
 }
 
 function changerJour(delta){
@@ -2445,8 +2453,51 @@ async function enregistrerParametresNotifications(){
 }
 
 /* ---- Photo de profil (prise ou choisie depuis la galerie) ---- */
+const DELAI_PHOTO_MS = 2 * 24 * 3600 * 1000;   // une photo de profil tous les 2 jours
+const PHOTO_DATES_KEY = "carnet_maison_photo_dates";
+
+function datesPhotoLocales(){
+  try{ return JSON.parse(localStorage.getItem(PHOTO_DATES_KEY)) || {}; }catch(e){ return {}; }
+}
+
+/* date (ms) du dernier changement : le plus récent entre Firebase, le cache de la photo et cet appareil */
+function dernierChangementPhoto(personneId){
+  const profil = obtenirProfil(personneId);
+  const f = profil.photoUpdatedAt;
+  const dateFirebase = f && typeof f.toMillis === "function" ? f.toMillis() : (Number(f) || 0);
+  const pl = PHOTOS_LOCALES[personneId];
+  return Math.max(dateFirebase, (pl && pl.updatedAt) || 0, datesPhotoLocales()[personneId] || 0);
+}
+
+function tempsRestantPhoto(personneId){
+  const dernier = dernierChangementPhoto(personneId);
+  return dernier ? Math.max(0, dernier + DELAI_PHOTO_MS - Date.now()) : 0;
+}
+
+function texteDuree(ms){
+  const min = Math.ceil(ms / 60000);
+  const j = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
+  if(j) return j + " j" + (h ? " " + h + " h" : "");
+  if(h) return h + " h" + (m ? " " + m + " min" : "");
+  return Math.max(1, m) + " min";
+}
+
+function afficherPhotoVerrouillee(restant){
+  const quand = new Date(Date.now() + restant).toLocaleString("fr-FR", { weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit" });
+  document.getElementById("texte-photo-limite").innerHTML =
+    "Tu pourras changer ta photo de profil dans <strong>" + texteDuree(restant) + "</strong><br><small>(" + quand + ")</small>";
+  document.getElementById("fond-modale-photo-limite").style.display = "flex";
+}
+
+function fermerPhotoLimite(){
+  document.getElementById("fond-modale-photo-limite").style.display = "none";
+}
+
 function declencherChangementPhoto(){
-  if(personneActive) document.getElementById("fond-modale-photo").style.display = "flex";
+  if(!personneActive) return;
+  const restant = tempsRestantPhoto(personneActive);
+  if(restant > 0){ afficherPhotoVerrouillee(restant); return; }
+  document.getElementById("fond-modale-photo").style.display = "flex";
 }
 
 function fermerChoixPhoto(){
@@ -2503,11 +2554,15 @@ async function gererFichierPhoto(event){
   if(!fichier || !personneActive) return;
 
   const personneId = personneActive;
+  const restant = tempsRestantPhoto(personneId);
+  if(restant > 0){ afficherPhotoVerrouillee(restant); return; }   // sécurité (autre appareil, modale restée ouverte…)
   let blob = null;
   try{
     blob = await redimensionnerImage(fichier, 320);
     if(!blob) throw new Error("La photo n'a pas pu être convertie en image JPEG.");
     const dataUrl = await blobEnDataUrl(blob);
+    const datesAvant = datesPhotoLocales();
+    try{ localStorage.setItem(PHOTO_DATES_KEY, JSON.stringify({ ...datesAvant, [personneId]: Date.now() })); }catch(e){}
 
     const nouvelEtat = { ...etatCourant, profils: { ...etatCourant.profils } };
     nouvelEtat.profils[personneId] = {
@@ -2531,6 +2586,7 @@ async function gererFichierPhoto(event){
         : "Firebase a refusé la photo et le navigateur n'a pas pu l'enregistrer dans son cache.");
     }catch(erreurCache){
       console.error("Erreur de sauvegarde locale de la photo:", erreurCache);
+      try{ localStorage.setItem(PHOTO_DATES_KEY, JSON.stringify(datesPhotoLocales() && { ...datesPhotoLocales(), [personneId]: 0 })); }catch(e){}  // échec total : le délai n'est pas consommé
       alert("Impossible d'envoyer ou de conserver la photo. Vérifie la connexion et l'espace de stockage du navigateur.");
     }
   }
@@ -2705,20 +2761,27 @@ const CAR = {
   carteDown: null,
   raf: null, tPrev: 0,
   prete: false, derniereRoue: 0,
-  fondActif: null, fondZ: 1, fondTimer: null   // bannière affichée, pile des calques, minuterie de fin de fondu
+  m: null, cartes: null                         // mesures et cartes en cache
 };
-const FOND_FONDU_MS = 1200; // durée du fondu entre deux bannières (en millisecondes)
+const FOND_FONDU_MS = 600; // durée du fondu entre deux bannières (en millisecondes)
 
 function carMesures(){
+  if(CAR.m) return CAR.m;
   const el = document.querySelector('.carousel-famille');
   if(!el) return null;
   const W = el.clientWidth || window.innerWidth;
   const cw = Math.max(150, Math.min(260, W * 0.31));
-  if(el.dataset.cw !== String(Math.round(cw))){
-    el.dataset.cw = String(Math.round(cw));
-    el.style.setProperty('--cw', cw + 'px');
+  el.style.setProperty('--cw', cw + 'px');
+  CAR.m = { el, cw, s1: cw * 0.91 + 14, s2: cw * 0.6 };
+  return CAR.m;
+}
+
+function carCartes(){
+  if(!CAR.cartes){
+    const el = document.querySelector('.carousel-famille');
+    CAR.cartes = el ? Array.from(el.querySelectorAll('.famille-card')).map(c => ({ el:c, i:Number(c.dataset.index), id:c.dataset.id, tr:'', z:'', c:'', o:'', v:'' })) : [];
   }
-  return { el, cw, s1: cw * 0.91 + 14, s2: cw * 0.6 };
+  return CAR.cartes;
 }
 
 function carX(ds, m){
@@ -2729,9 +2792,11 @@ function carX(ds, m){
 
 /* Couleur de la carte = couleur d'accent du thème choisi par la personne (stocké dans Firebase :
    profils[id].theme). Centre = couleur pleine ; plus la carte s'éloigne, plus elle s'éclaircit. */
+const CAR_HEX = {};
 function carHexVersRgb(hex){
+  if(CAR_HEX[hex]) return CAR_HEX[hex];
   const h = String(hex).replace('#', '');
-  return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16));
+  return (CAR_HEX[hex] = [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)));
 }
 
 function carCouleur(personneId, d){
@@ -2771,9 +2836,8 @@ function carAppliquer(){
   const n = obtenirIdsPersonnes().length;
   const demi = n / 2;
   const larg = Math.min(1, Math.max(0.3, demi - 1));
-  m.el.querySelectorAll('.famille-card').forEach(carte => {
-    const i = Number(carte.dataset.index);
-    const ds = carEcart(i, CAR.pos, n);
+  for(const k of carCartes()){
+    const ds = carEcart(k.i, CAR.pos, n);
     const d = Math.abs(ds);
     const x = carX(ds, m);
     const echelle = d <= 1 ? 1 - 0.18 * d : Math.max(0.6, 0.82 - 0.11 * (d - 1));
@@ -2781,46 +2845,18 @@ function carAppliquer(){
     // en boucle, la carte s'efface avant de repasser de l'autre côté du cercle
     const opa = n >= 3 ? Math.max(0, Math.min(1, (demi - d) / larg))
                        : Math.max(0, Math.min(1, 3.6 - d));
-    const st = carte.style;
-    st.transform = `translate3d(${x.toFixed(2)}px,${(-lift).toFixed(2)}px,0) scale(${echelle.toFixed(4)})`;
-    st.zIndex = String(100 - Math.round(d * 10));
-    st.setProperty('--c', carCouleur(carte.dataset.id, d));
-    st.opacity = opa.toFixed(3);
-    st.visibility = opa <= 0.01 ? 'hidden' : 'visible';
-  });
-  carFond(n);
-}
-
-/* Fond : quand la personne au centre change, sa bannière apparaît en fondu (FOND_FONDU_MS)
-   AU-DESSUS de l'ancienne, qui reste en place jusqu'à la fin du fondu (pas de « trou »). */
-function carFond(n){
-  const calques = document.querySelectorAll('.fond-calque');
-  if(!calques.length || !n) return;
-  const proche = carModulo(Math.round(CAR.pos), n);
-  if(CAR.fondActif === proche) return;
-  const premier = CAR.fondActif === null;
-  CAR.fondActif = proche;
-  CAR.fondZ += 1;
-  clearTimeout(CAR.fondTimer);
-  const nouveau = Array.from(calques).find(c => Number(c.dataset.index) === proche);
-  if(!nouveau) return;
-
-  if(premier){ // premier affichage : pas de fondu
-    calques.forEach(c => { c.style.transition = 'none'; c.style.opacity = (c === nouveau) ? '1' : '0'; });
-    nouveau.style.zIndex = String(CAR.fondZ);
-    void nouveau.offsetWidth;
-    calques.forEach(c => { c.style.transition = ''; });
-    return;
+    const st = k.el.style;
+    const tr = `translate3d(${x.toFixed(2)}px,${(-lift).toFixed(2)}px,0) scale(${echelle.toFixed(4)})`;
+    if(tr !== k.tr){ k.tr = tr; st.transform = tr; }
+    const z = String(100 - Math.round(d * 10));
+    if(z !== k.z){ k.z = z; st.zIndex = z; }
+    const c = carCouleur(k.id, Math.round(d * 25) / 25);
+    if(c !== k.c){ k.c = c; st.setProperty('--c', c); }
+    const o = opa.toFixed(2);
+    if(o !== k.o){ k.o = o; st.opacity = o; }
+    const v = opa <= 0.01 ? 'hidden' : 'visible';
+    if(v !== k.v){ k.v = v; st.visibility = v; }
   }
-  nouveau.style.transition = '';
-  void nouveau.offsetWidth;
-  nouveau.style.zIndex = String(CAR.fondZ);
-  nouveau.style.opacity = '1';
-  CAR.fondTimer = setTimeout(() => {
-    calques.forEach(c => {
-      if(c !== nouveau){ c.style.transition = 'none'; c.style.opacity = '0'; }
-    });
-  }, FOND_FONDU_MS + 50);
 }
 
 function carDemarrer(){
@@ -2938,7 +2974,7 @@ function initialiserCarousel(){
     else if(e.key === 'Enter' && ids.length) ouvrirEcranPin(ids[carModulo(Math.round(CAR.pos), ids.length)]);
   });
 
-  window.addEventListener('resize', carAppliquer);
+  window.addEventListener('resize', () => { CAR.m = null; carAppliquer(); });
 }
 
 /* ---- Horloge de l'écran de sélection : « 14 : 51 » / « Samedi 14 Novembre » ---- */
@@ -2976,21 +3012,6 @@ function majAvatarsAccueil(){
       zone.innerHTML = htmlAvatarCarte(image);
     }
   });
-  majFondAccueil();
-}
-
-/* Applique à chaque calque la bannière de sa personne (local ou Firebase) */
-function majFondAccueil(){
-  document.querySelectorAll('.fond-calque').forEach(c => {
-    const url = obtenirMetaPersonne(c.dataset.id).banner || '';
-    const theme = THEMES[obtenirProfil(c.dataset.id).theme] || THEMES.bleu;
-    const filtre = theme.sombre ? FILTRE_SOMBRE : '';   // voile sombre si la personne a choisi un thème sombre
-    const cle = url + '|' + filtre;
-    if(c.dataset.src === cle) return;
-    c.dataset.src = cle;
-    const image = `url("${url.replace(/"/g, '%22')}")`;
-    c.style.backgroundImage = !url ? 'none' : (filtre ? `linear-gradient(${filtre}, ${filtre}), ${image}` : image);
-  });
 }
 
 function rendre(){
@@ -3013,8 +3034,7 @@ function rendre(){
                                 : Math.max(0, Math.min(CAR.pos, Math.max(0, ids.length - 1)));
     }
     app.innerHTML = vueLogin();
-    CAR.fondActif = null; // nouveaux calques : premier affichage sans fondu
-    majFondAccueil();
+    CAR.m = null; CAR.cartes = null; // nouvelles cartes : on remesure
     carAppliquer();
   } else if(vueActuelle === "pin"){
     app.innerHTML = vuePin();
@@ -3040,7 +3060,6 @@ function vueLogin(){
   const t = texteHorlogeAccueil(new Date());
   return `
     <div class="ecran-selection">
-      <div class="fond-accueil" style="--fondu:${FOND_FONDU_MS}ms">${ids.map((id, index) => `<div class="fond-calque" data-id="${id}" data-index="${index}"></div>`).join("")}</div>
       <div class="selection-header">
         <span class="heure">${t.heure}</span>
         <span class="date">${t.date}</span>
@@ -3456,7 +3475,7 @@ function fermerSucces(){
 document.addEventListener('keydown', (e) => { if(e.key === 'Escape') fermerSucces(); });
 
 /* ---- Éclat « liquide » des boutons en verre : suit le doigt / la souris ---- */
-const SEL_VERRE = '.famille-card,.deconnexion,.fleche,.bouton-aujourdhui,.bouton-succes,.touche,.retour,.btn-annuler,.btn-confirmer,.option-notif,.bouton-option-edition,.bouton-edition-profil,.bouton-valider,.bouton-fermer,.badge-camera';
+const SEL_VERRE = '.deconnexion,.fleche,.bouton-aujourdhui,.bouton-succes,.touche,.retour,.btn-annuler,.btn-confirmer,.option-notif,.bouton-option-edition,.bouton-edition-profil,.bouton-valider,.bouton-fermer,.badge-camera';
 function suivreReflet(e){
   const cible = e.target && e.target.closest ? e.target.closest(SEL_VERRE) : null;
   if(!cible) return;
@@ -3465,7 +3484,6 @@ function suivreReflet(e){
   cible.style.setProperty('--my', (e.clientY - r.top) + 'px');
 }
 document.addEventListener('pointerdown', suivreReflet, { passive:true });
-document.addEventListener('pointermove', suivreReflet, { passive:true });
 
 ['pointerdown', 'pointermove', 'keydown', 'wheel', 'input', 'change'].forEach(type => {
   document.addEventListener(type, enregistrerActivite, { passive:true });
@@ -3494,18 +3512,34 @@ demarrer();
 <script type="module">
 /* Liquid glass : librairie @ybouane/liquidglass (WebGL).
    Les éléments de verre doivent être des enfants directs de la racine #verre : on y place donc un
-   « proxy » vide par bouton/carte, calé chaque image sur la position du vrai élément (qui reste cliquable). */
-import { LiquidGlass } from 'https://cdn.jsdelivr.net/npm/@ybouane/liquidglass/dist/index.js';
+   « proxy » vide par bouton/carte, calé sur la position du vrai élément (qui reste cliquable).
+
+   OPTIMISATIONS
+   - Résolution du verre plafonnée (DPR_MAX) : 2 à 4 fois moins de pixels sur les écrans « retina ».
+   - Le proxy garde la taille de mise en page de l'élément ; position et échelle passent par transform.
+     (changer sa taille à chaque image forçait la librairie à réallouer le canvas et refaire une capture HTML).
+   - Chaque élément garde « son » proxy tant qu'il existe ; l'opacité passe par le CSS, pas par la config.
+   - Le filtre sombre est un <canvas> : la librairie le redessine toujours à jour (plus de capture HTML).
+   - Qualité adaptative : si l'appareil est lent pendant un mouvement, on coupe d'abord le flou, puis le verre
+     pendant le mouvement (il réapparaît en fondu à l'arrêt). Forcer : window.__qualiteVerre = 2 | 1 | 0. */
+const DPR_MAX = 1.5;
+try{
+  const d = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio');
+  if(d && d.get) Object.defineProperty(window, 'devicePixelRatio', { configurable:true, get: () => Math.min(d.get.call(window) || 1, DPR_MAX) });
+}catch(e){ console.warn('DPR non plafonné :', e); }
 
 const SEL = '.famille-card,.deconnexion,.fleche,.bouton-aujourdhui,.bouton-succes,.touche,.retour,.bouton-option-edition,.bouton-edition-profil,.bouton-valider,.badge-camera,.pastille-theme,.selecteur-theme';
 const TAILLE_POOL = 40;
 const FOND_DEFAUT = 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1800&q=80';
 const racine = document.getElementById('verre');
+const appEl = document.getElementById('app');
 const imgs = Array.from(racine.querySelectorAll('img.bg'));
-const filtre = racine.querySelector('.filtre');
-const pool = [];
-let inst = null, actif = 0, urlCourante = '', couleurFiltre = '';
-let requeteFond = 0, minuterieFondu = null;
+const filtre = racine.querySelector('canvas.filtre');
+const ctxF = filtre.getContext('2d');
+const pool = [], attrib = new Map(), libres = [];
+let inst = null, actif = 0, urlCourante = '';
+let requeteFond = 0, minuterieFondu = null, fonduEnCours = false;
+racine.style.setProperty('--fondu', FOND_FONDU_MS + 'ms');
 
 function chargerImg(img, url){
   return new Promise(ok => { img.crossOrigin = 'anonymous'; img.onload = () => ok(true); img.onerror = () => ok(false); img.src = url; });
@@ -3525,54 +3559,149 @@ function changerFond(url){
     nouveau.dataset.dynamic = ''; ancien.dataset.dynamic = '';
     nouveau.style.opacity = 1;
     actif = 1 - actif;
+    fonduEnCours = true;
     minuterieFondu = setTimeout(() => {
       ancien.style.opacity = 0;
       delete nouveau.dataset.dynamic; delete ancien.dataset.dynamic;
       if(inst) inst.markChanged();
-      minuterieFondu = null;
-    }, FOND_FONDU_MS + 100);
+      minuterieFondu = null; fonduEnCours = false;
+    }, FOND_FONDU_MS + 60);
   });
 }
 
-function opaciteEff(el){
+/* filtre sombre : couleur de base + voile, animés en douceur */
+const mFiltre = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/.exec(FILTRE_SOMBRE) || [0, 8, 10, 18, 0.55];
+const F = { a: 0, v: 0, ta: 0, tv: 0, init: false };
+function dessinerFiltre(){
+  ctxF.clearRect(0, 0, 1, 1);
+  ctxF.fillStyle = `rgba(${mFiltre[1]},${mFiltre[2]},${mFiltre[3]},${F.a.toFixed(3)})`; ctxF.fillRect(0, 0, 1, 1);
+  ctxF.fillStyle = `rgba(0,0,0,${F.v.toFixed(3)})`; ctxF.fillRect(0, 0, 1, 1);
+}
+function majFiltre(dt, id, login){
+  const t = THEMES[obtenirProfil(id).theme] || THEMES.bleu;
+  F.ta = t.sombre ? (parseFloat(mFiltre[4]) || 0.55) : 0;
+  F.tv = login ? 0 : 0.28;
+  if(!F.init){ F.init = true; F.a = F.ta; F.v = F.tv; dessinerFiltre(); return; }
+  if(F.a === F.ta && F.v === F.tv) return;
+  const k = 1 - Math.exp(-dt / 110);
+  F.a += (F.ta - F.a) * k; F.v += (F.tv - F.v) * k;
+  if(Math.abs(F.ta - F.a) < 0.004) F.a = F.ta;
+  if(Math.abs(F.tv - F.v) < 0.004) F.v = F.tv;
+  dessinerFiltre();
+  if(inst) inst.markChanged(filtre);
+}
+
+/* ---- qualité adaptative ---- */
+const Q = { niv: 2, lents: 0, ema: 16.7 };
+function enMouvement(){
+  if(CAR.raf !== null || CAR.drag || enTransition || fonduEnCours) return true;
+  try{ return appEl.getAnimations({ subtree:true }).some(a => a.playState === 'running'); }catch(e){ return false; }
+}
+function gouverner(dt, mv){
+  if(typeof window.__qualiteVerre === 'number'){ Q.niv = window.__qualiteVerre; return; }
+  if(!mv){ Q.lents = 0; return; }
+  Q.ema = Q.ema * 0.9 + dt * 0.1;
+  if(Q.ema > 30){
+    if(++Q.lents >= 24 && Q.niv > 0){ Q.niv--; Q.lents = 0; Q.ema = 16.7; console.info('Verre : qualité réduite (niveau ' + Q.niv + ')'); }
+  } else Q.lents = Math.max(0, Q.lents - 1);
+}
+
+let domSale = true, candidats = [];
+new MutationObserver(() => { domSale = true; }).observe(appEl, { childList:true, subtree:true });
+
+function opaciteEff(el, memo){
   let o = 1;
-  for(let n = el; n && n !== document.body; n = n.parentElement) o *= parseFloat(getComputedStyle(n).opacity);
+  for(let n = el; n && n !== document.body; n = n.parentElement){
+    let v = memo.get(n);
+    if(v === undefined){ v = parseFloat(getComputedStyle(n).opacity); memo.set(n, v); }
+    o *= v;
+  }
   return o;
 }
 
-function placer(p, r, el, cs, o){
-  const base = Math.min(r.width, r.height) / 2;
+function cacherProxy(p){
+  if(p._vis){ p._vis = false; p.style.visibility = 'hidden'; }
+}
+
+function prendreProxy(w0, h0, tx, ty){
+  if(!libres.length) return null;
+  let i = libres.findIndex(p => p._w === w0 && p._h === h0 && Math.abs(p._tx - tx) < 1 && Math.abs(p._ty - ty) < 1);
+  if(i < 0) i = libres.findIndex(p => p._w === w0 && p._h === h0);
+  if(i < 0) i = libres.length - 1;
+  return libres.splice(i, 1)[0];
+}
+
+function placer(p, v, flou, dt){
+  const { el, r, w0, h0, cs, o, tx, ty } = v;
+  if(p._w !== w0 || p._h !== h0){ p._w = w0; p._h = h0; p.style.width = w0 + 'px'; p.style.height = h0 + 'px'; }
+  const sx = r.width / w0, sy = r.height / h0;
+  if(Math.abs(tx - p._tx) > 0.05 || Math.abs(ty - p._ty) > 0.05 || Math.abs(sx - p._sx) > 0.0005 || Math.abs(sy - p._sy) > 0.0005){
+    p._tx = tx; p._ty = ty; p._sx = sx; p._sy = sy;
+    p.style.transform = `translate3d(${tx.toFixed(2)}px,${ty.toFixed(2)}px,0) scale(${sx.toFixed(4)},${sy.toFixed(4)})`;
+  }
+  const base = Math.min(w0, h0) / 2;
   let rad = cs.borderTopLeftRadius;
-  rad = rad.includes('%') ? base * parseFloat(rad) / 50 : parseFloat(rad) * (r.width / (el.offsetWidth || r.width));
+  rad = rad.includes('%') ? base * parseFloat(rad) / 50 : parseFloat(rad);
   rad = Math.max(2, Math.min(rad || 0, base));
   const bulle = el.matches('.pastille-theme,.badge-camera');
-  const cfg = JSON.stringify({
-    blurAmount: 0.2, cornerRadius: +rad.toFixed(1), zRadius: +Math.max(3, Math.min(rad, bulle ? rad : 30)).toFixed(1),
-    opacity: +o.toFixed(2), shadowOpacity: 0.22, shadowSpread: 8, bevelMode: bulle ? 1 : 0
-  });
-  if(p.dataset.config !== cfg) p.dataset.config = cfg;
-  const v = [r.left, r.top, r.width, r.height].map(n => n.toFixed(1)).join();
-  if(p._v !== v){
-    p._v = v;
-    p.style.left = r.left + 'px'; p.style.top = r.top + 'px';
-    p.style.width = r.width + 'px'; p.style.height = r.height + 'px';
+  const zr = Math.max(3, Math.min(rad, bulle ? rad : 30));
+  const cle = rad.toFixed(1) + '|' + zr.toFixed(1) + '|' + flou + '|' + (bulle ? 1 : 0);
+  if(p._cle !== cle){
+    p._cle = cle;
+    p.dataset.config = JSON.stringify({ blurAmount: flou, cornerRadius: +rad.toFixed(1), zRadius: +zr.toFixed(1), shadowOpacity: 0.22, shadowSpread: 8, bevelMode: bulle ? 1 : 0 });
   }
-  p.style.zIndex = 10 + (parseInt(cs.zIndex) || 0);
+  if(!p._vis){ p._vis = true; p._f = 0; p.style.visibility = 'visible'; }
+  p._f = Math.min(1, p._f + dt / 140);       // apparition en fondu
+  const op = +(o * p._f).toFixed(2);
+  if(p._op !== op){ p._op = op; p.style.opacity = op; }
+  const z = 10 + (parseInt(cs.zIndex) || 0);
+  if(p._z !== z){ p._z = z; p.style.zIndex = z; }
 }
 
-function cacher(p){
-  if(p._v === 'x') return;
-  p._v = 'x';
-  p.style.left = '-40px'; p.style.top = '-40px'; p.style.width = '4px'; p.style.height = '4px';
+function synchroniser(dt, mv){
+  if(domSale){ candidats = Array.from(document.querySelectorAll(SEL)); domSale = false; }
+  const niv = Q.niv;
+  const flou = (mv && niv <= 1) ? 0 : 0.2;
+  const vus = [];
+  if(!(mv && niv === 0)){
+    const memo = new Map();
+    const n = obtenirIdsPersonnes().length;
+    for(const el of candidats){
+      if(!el.isConnected) continue;
+      const cs = getComputedStyle(el);
+      if(cs.visibility === 'hidden' || cs.display === 'none') continue;
+      const w0 = el.offsetWidth, h0 = el.offsetHeight;
+      if(w0 < 2 || h0 < 2) continue;
+      const r = el.getBoundingClientRect();
+      if(r.bottom < -20 || r.top > innerHeight + 20 || r.right < -20 || r.left > innerWidth + 20) continue;
+      const o = opaciteEff(el, memo);
+      if(o < 0.01) continue;
+      if(mv && niv <= 1 && el.classList.contains('famille-card') && Math.abs(carEcart(Number(el.dataset.index), CAR.pos, n)) > 1.45) continue;
+      vus.push({ el, r, w0, h0, cs, o, tx: r.left + r.width / 2 - w0 / 2, ty: r.top + r.height / 2 - h0 / 2 });
+    }
+  }
+  const utilises = new Set(vus.map(v => v.el));
+  for(const [el, p] of attrib){
+    if(!utilises.has(el)){ attrib.delete(el); cacherProxy(p); libres.push(p); }
+  }
+  let nouveaux = 0;
+  for(const v of vus){
+    let p = attrib.get(v.el);
+    if(!p){
+      if(nouveaux >= 5) continue;            // on étale les nouveaux verres sur plusieurs images
+      p = prendreProxy(v.w0, v.h0, v.tx, v.ty);
+      if(!p) continue;
+      attrib.set(v.el, p); nouveaux++;
+    }
+    placer(p, v, flou, dt);
+  }
 }
 
-let boucleRaf = 0;
-function reveillerBoucle(){
-  if(!boucleRaf) boucleRaf = requestAnimationFrame(boucle);
-}
-
-function boucle(){
-  boucleRaf = 0;
+let tPrec = 0;
+function boucle(t){
+  requestAnimationFrame(boucle);
+  const dt = tPrec ? Math.min(t - tPrec, 100) : 16; tPrec = t;
+  if(document.hidden) return;
 
   /* 1) fond = bannière de la personne (au centre du carrousel, ou connectée / en train de saisir son code) */
   const login = vueActuelle === 'login';
@@ -3585,58 +3714,33 @@ function boucle(){
   }
   if(id){
     changerFond(obtenirMetaPersonne(id).banner);
-    racine.style.setProperty('--voile', login ? '0' : '.28');
-    if(login){
-      const t = THEMES[obtenirProfil(id).theme] || THEMES.bleu;
-      racine.style.setProperty('--filtre-fond', t.sombre ? FILTRE_SOMBRE : FILTRE_AUCUN);
-    } else {
-      racine.style.removeProperty('--filtre-fond');
-    }
+    majFiltre(dt, id, login);
   }
   if(!inst) return;
-  const cf = getComputedStyle(filtre); const c = cf.backgroundColor + cf.backgroundImage;
-  if(c !== couleurFiltre){ couleurFiltre = c; inst.markChanged(filtre); }
 
   /* 2) un proxy de verre par élément visible */
-  let k = 0;
-  for(const el of document.querySelectorAll(SEL)){
-    if(k >= pool.length) break;
-    const cs = getComputedStyle(el);
-    if(cs.visibility === 'hidden' || cs.display === 'none') continue;
-    const r = el.getBoundingClientRect();
-    if(r.width < 2 || r.height < 2 || r.bottom < 0 || r.top > innerHeight) continue;
-    const o = opaciteEff(el);
-    if(o < 0.01) continue;
-    placer(pool[k++], r, el, cs, o);
-  }
-  for(; k < pool.length; k++) cacher(pool[k]);
-
-  if(CAR.drag || CAR.raf || document.getAnimations().some(animation => animation.playState === 'running')){
-    reveillerBoucle();
-  }
+  const mv = enMouvement();
+  gouverner(dt, mv);
+  synchroniser(dt, mv);
 }
-
-['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'click', 'keydown', 'input', 'change']
-  .forEach(type => document.addEventListener(type, reveillerBoucle, { passive:true }));
-window.addEventListener('scroll', reveillerBoucle, { passive:true, capture:true });
-window.addEventListener('resize', reveillerBoucle, { passive:true });
-new MutationObserver(reveillerBoucle).observe(document.getElementById('app'), {
-  childList:true, subtree:true, attributes:true, attributeFilter:['class']
-});
 
 (async () => {
   await Promise.all(imgs.map(i => chargerImg(i, FOND_DEFAUT)));
   urlCourante = FOND_DEFAUT;
+  dessinerFiltre();
   for(let i = 0; i < TAILLE_POOL; i++){
     const d = document.createElement('div');
     d.className = 'verre-proxy';
-    d.style.cssText = 'left:-40px;top:-40px;width:4px;height:4px';
+    d.style.cssText = 'width:4px;height:4px';
     racine.appendChild(d);
-    pool.push(d);
+    pool.push(d); libres.push(d);
   }
-  inst = await LiquidGlass.init({ root: racine, glassElements: pool });
-  reveillerBoucle();
-})().catch(e => console.error('LiquidGlass :', e));
+  requestAnimationFrame(boucle); // le fond fonctionne même si la librairie ne se charge pas
+  try{
+    const { LiquidGlass } = await import('https://cdn.jsdelivr.net/npm/@ybouane/liquidglass/dist/index.js');
+    inst = await LiquidGlass.init({ root: racine, glassElements: pool });
+  }catch(e){ console.error('LiquidGlass :', e); }
+})().catch(e => console.error('Fond :', e));
 </script>
 </body>
 </html>
