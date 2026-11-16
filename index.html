@@ -1898,6 +1898,17 @@ body::before{display:none}
 }
 .bouton-edition-profil.ouvert{background:linear-gradient(150deg, var(--glass-danger-a), var(--glass-danger-b))}
 .famille-card{background:linear-gradient(150deg, rgba(var(--c,59,130,246),.7), rgba(var(--c,59,130,246),.38))}
+/* écran d'accueil : faux verre en CSS pur (aucun WebGL, aucun flou) — léger même sur un petit appareil */
+#app .famille-card{
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.34) 0%, rgba(255,255,255,.08) 38%, rgba(255,255,255,0) 60%),
+    linear-gradient(150deg, rgba(var(--c,59,130,246),.74), rgba(var(--c,59,130,246),.42));
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.55),
+    inset 0 0 0 1px rgba(255,255,255,.22),
+    inset 0 -10px 18px rgba(0,0,0,.10),
+    0 8px 22px rgba(0,0,0,.28) !important;
+}
 .pastille-theme{background:color-mix(in srgb, var(--c) 60%, transparent) !important}
 .pastille-theme.actif{box-shadow:0 0 0 2.5px var(--texte) !important}
 .options-edition-profil .selecteur-theme{border-radius:999px}
@@ -3565,7 +3576,7 @@ function dessinerFond(){
   ctxB.clearRect(0, 0, fondCv.width, fondCv.height);
   if(imgPrec && fondAlpha < 1) couvrir(imgPrec, 1);
   couvrir(imgCour, imgPrec ? fondAlpha : 1);
-  if(inst) inst.markChanged(fondCv);
+  if(inst && vueActuelle !== 'login') inst.markChanged(fondCv);   // accueil : pas de verre WebGL
 }
 function avancerFondu(){
   if(!fonduEnCours) return;
@@ -3685,7 +3696,7 @@ function synchroniser(dt, mv){
   const niv = Q.niv;
   const flou = (mv && niv <= 1) ? 0 : 0.2;
   const vus = [];
-  if(!(mv && niv === 0)){
+  if(!(mv && niv === 0) && vueActuelle !== 'login'){   // accueil : verre remplacé par du CSS léger
     const memo = new Map();
     const n = obtenirIdsPersonnes().length;
     for(const el of candidats){
