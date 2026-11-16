@@ -3732,6 +3732,7 @@ function boucle(t){
     const d = document.createElement('div');
     d.className = 'verre-proxy';
     d.style.cssText = 'width:4px;height:4px';
+    d._tx = d._ty = d._sx = d._sy = 1e9; d._vis = false; d._w = d._h = 0;   // jamais NaN : la 1re position est toujours appliquée
     racine.appendChild(d);
     pool.push(d); libres.push(d);
   }
