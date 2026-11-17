@@ -217,109 +217,236 @@ async function chargerConfigPersonnes(){
    Facile d'ajouter un thème : copie un bloc et change les couleurs.
    ============================================================ */
 const THEMES = {
-lavande: {
-    label: "Lavande",
-    swatch: "#8B5CF6",
+  bleu: {
+    label: 'Bleu',
+    swatch: '#3B82F6',
     variables: {
-      "--fond": "#EDE9F3", "--texte": "#312B3A", "--texte-doux": "#8E859E",
-      "--accent": "#8B5CF6", "--accent-doux": "#E5DCFB",
-      "--valide": "#34C77B", "--danger": "#E05A6D",
-      "--ombre-c1": "#cbc3d6", "--ombre-c2": "#ffffff"
+      '--fond': '#E9EDF3',
+      '--texte': '#2B3444',
+      '--texte-doux': '#8A93A6',
+      '--accent': '#3B82F6',
+      '--accent-doux': '#DCE9FF',
+      '--valide': '#34C77B',
+      '--danger': '#F0645A',
+      '--ombre-c1': '#c3cad6',
+      '--ombre-c2': '#ffffff'
+    }
+  },
+  vert: {
+    label: 'Nature',
+    swatch: '#4C9A6A',
+    variables: {
+      '--fond': '#E8EEE8',
+      '--texte': '#2C3A2F',
+      '--texte-doux': '#7E9086',
+      '--accent': '#4C9A6A',
+      '--accent-doux': '#D9EEDF',
+      '--valide': '#34C77B',
+      '--danger': '#E0685B',
+      '--ombre-c1': '#c2ccc4',
+      '--ombre-c2': '#ffffff'
+    }
+  },
+  rose: {
+    label: 'Douceur',
+    swatch: '#E0708C',
+    variables: {
+      '--fond': '#F3E9ED',
+      '--texte': '#3A2B33',
+      '--texte-doux': '#A6858F',
+      '--accent': '#E0708C',
+      '--accent-doux': '#FBDCE4',
+      '--valide': '#34C77B',
+      '--danger': '#D9504F',
+      '--ombre-c1': '#d6c3ca',
+      '--ombre-c2': '#ffffff'
+    }
+  },
+  soleil: {
+    label: 'Soleil',
+    swatch: '#E0A030',
+    variables: {
+      '--fond': '#F3EEE3',
+      '--texte': '#3A3226',
+      '--texte-doux': '#A69880',
+      '--accent': '#E0A030',
+      '--accent-doux': '#FBEBCF',
+      '--valide': '#34C77B',
+      '--danger': '#E0645A',
+      '--ombre-c1': '#d6cdb8',
+      '--ombre-c2': '#ffffff'
+    }
+  },
+  nuit: {
+    sombre: true, // thème sombre : surfaces sombres + filtre sombre sur l'image de fond
+    label: 'Nuit',
+    swatch: '#6C8CFF',
+    variables: {
+      '--fond': '#242832',
+      '--texte': '#E9EDF3',
+      '--texte-doux': '#8D93A3',
+      '--accent': '#6C8CFF',
+      '--accent-doux': '#333B52',
+      '--valide': '#3ED890',
+      '--danger': '#FF7A70',
+      '--ombre-c1': '#1a1d24',
+      '--ombre-c2': '#2e333f'
+    }
+  },
+  lavande: {
+    label: 'Lavande',
+    swatch: '#8B5CF6',
+    variables: {
+      '--fond': '#EDE9F3',
+      '--texte': '#312B3A',
+      '--texte-doux': '#8E859E',
+      '--accent': '#8B5CF6',
+      '--accent-doux': '#E5DCFB',
+      '--valide': '#34C77B',
+      '--danger': '#E05A6D',
+      '--ombre-c1': '#cbc3d6',
+      '--ombre-c2': '#ffffff'
     }
   },
   ocean: {
-    label: "Océan",
-    swatch: "#0D9488",
+    label: 'Océan',
+    swatch: '#0D9488',
     variables: {
-      "--fond": "#E6F0F0", "--texte": "#253636", "--texte-doux": "#7B9494",
-      "--accent": "#0D9488", "--accent-doux": "#D2EFEA",
-      "--valide": "#34C77B", "--danger": "#E0645A",
-      "--ombre-c1": "#bfd1d1", "--ombre-c2": "#ffffff"
+      '--fond': '#E6F0F0',
+      '--texte': '#253636',
+      '--texte-doux': '#7B9494',
+      '--accent': '#0D9488',
+      '--accent-doux': '#D2EFEA',
+      '--valide': '#34C77B',
+      '--danger': '#E0645A',
+      '--ombre-c1': '#bfd1d1',
+      '--ombre-c2': '#ffffff'
     }
   },
   corail: {
-    label: "Corail",
-    swatch: "#F97316",
+    label: 'Corail',
+    swatch: '#F97316',
     variables: {
-      "--fond": "#F4EBE6", "--texte": "#3D2E27", "--texte-doux": "#A38A7E",
-      "--accent": "#F97316", "--accent-doux": "#FDE3D2",
-      "--valide": "#34C77B", "--danger": "#D94848",
-      "--ombre-c1": "#d6c6bd", "--ombre-c2": "#ffffff"
+      '--fond': '#F4EBE6',
+      '--texte': '#3D2E27',
+      '--texte-doux': '#A38A7E',
+      '--accent': '#F97316',
+      '--accent-doux': '#FDE3D2',
+      '--valide': '#34C77B',
+      '--danger': '#D94848',
+      '--ombre-c1': '#d6c6bd',
+      '--ombre-c2': '#ffffff'
     }
   },
   ardoise: {
-    label: "Ardoise",
-    swatch: "#64748B",
+    label: 'Ardoise',
+    swatch: '#64748B',
     variables: {
-      "--fond": "#ECEEF1", "--texte": "#2D333B", "--texte-doux": "#87909C",
-      "--accent": "#64748B", "--accent-doux": "#DDE2E8",
-      "--valide": "#34C77B", "--danger": "#E0645A",
-      "--ombre-c1": "#c7ccd3", "--ombre-c2": "#ffffff"
+      '--fond': '#ECEEF1',
+      '--texte': '#2D333B',
+      '--texte-doux': '#87909C',
+      '--accent': '#64748B',
+      '--accent-doux': '#DDE2E8',
+      '--valide': '#34C77B',
+      '--danger': '#E0645A',
+      '--ombre-c1': '#c7ccd3',
+      '--ombre-c2': '#ffffff'
     }
   },
   cerise: {
-    label: "Cerise",
-    swatch: "#DC2626",
+    label: 'Cerise',
+    swatch: '#DC2626',
     variables: {
-      "--fond": "#F3E8E8", "--texte": "#3B2828", "--texte-doux": "#9E7E7E",
-      "--accent": "#DC2626", "--accent-doux": "#FAD9D9",
-      "--valide": "#34C77B", "--danger": "#B91C1C",
-      "--ombre-c1": "#d6c2c2", "--ombre-c2": "#ffffff"
+      '--fond': '#F3E8E8',
+      '--texte': '#3B2828',
+      '--texte-doux': '#9E7E7E',
+      '--accent': '#DC2626',
+      '--accent-doux': '#FAD9D9',
+      '--valide': '#34C77B',
+      '--danger': '#B91C1C',
+      '--ombre-c1': '#d6c2c2',
+      '--ombre-c2': '#ffffff'
     }
   },
   menthe: {
-    label: "Menthe",
-    swatch: "#10B981",
+    label: 'Menthe',
+    swatch: '#10B981',
     variables: {
-      "--fond": "#E7F2EE", "--texte": "#263832", "--texte-doux": "#7C968D",
-      "--accent": "#10B981", "--accent-doux": "#D3F3E7",
-      "--valide": "#059669", "--danger": "#E0645A",
-      "--ombre-c1": "#c0d4cd", "--ombre-c2": "#ffffff"
+      '--fond': '#E7F2EE',
+      '--texte': '#263832',
+      '--texte-doux': '#7C968D',
+      '--accent': '#10B981',
+      '--accent-doux': '#D3F3E7',
+      '--valide': '#059669',
+      '--danger': '#E0645A',
+      '--ombre-c1': '#c0d4cd',
+      '--ombre-c2': '#ffffff'
     }
   },
   sable: {
-    label: "Sable",
-    swatch: "#B45309",
+    label: 'Sable',
+    swatch: '#B45309',
     variables: {
-      "--fond": "#F2ECE4", "--texte": "#3B3127", "--texte-doux": "#9E8D7B",
-      "--accent": "#B45309", "--accent-doux": "#F7E5D0",
-      "--valide": "#34C77B", "--danger": "#D9504F",
-      "--ombre-c1": "#d4c9bc", "--ombre-c2": "#ffffff"
+      '--fond': '#F2ECE4',
+      '--texte': '#3B3127',
+      '--texte-doux': '#9E8D7B',
+      '--accent': '#B45309',
+      '--accent-doux': '#F7E5D0',
+      '--valide': '#34C77B',
+      '--danger': '#D9504F',
+      '--ombre-c1': '#d4c9bc',
+      '--ombre-c2': '#ffffff'
     }
   },
   minuit: {
     sombre: true,
-    label: "Minuit",
-    swatch: "#A78BFA",
+    label: 'Minuit',
+    swatch: '#A78BFA',
     variables: {
-      "--fond": "#23212E", "--texte": "#EDE9F5", "--texte-doux": "#918BA3",
-      "--accent": "#A78BFA", "--accent-doux": "#36314D",
-      "--valide": "#3ED890", "--danger": "#FF7A70",
-      "--ombre-c1": "#181620", "--ombre-c2": "#2e2b3c"
+      '--fond': '#23212E',
+      '--texte': '#EDE9F5',
+      '--texte-doux': '#918BA3',
+      '--accent': '#A78BFA',
+      '--accent-doux': '#36314D',
+      '--valide': '#3ED890',
+      '--danger': '#FF7A70',
+      '--ombre-c1': '#181620',
+      '--ombre-c2': '#2e2b3c'
     }
   },
   foret: {
     sombre: true,
-    label: "Forêt",
-    swatch: "#4ADE80",
+    label: 'Forêt',
+    swatch: '#4ADE80',
     variables: {
-      "--fond": "#1E2923", "--texte": "#E6F0EA", "--texte-doux": "#84998D",
-      "--accent": "#4ADE80", "--accent-doux": "#2B3D33",
-      "--valide": "#3ED890", "--danger": "#FF7A70",
-      "--ombre-c1": "#151d18", "--ombre-c2": "#27352d"
+      '--fond': '#1E2923',
+      '--texte': '#E6F0EA',
+      '--texte-doux': '#84998D',
+      '--accent': '#4ADE80',
+      '--accent-doux': '#2B3D33',
+      '--valide': '#3ED890',
+      '--danger': '#FF7A70',
+      '--ombre-c1': '#151d18',
+      '--ombre-c2': '#27352d'
     }
   },
   obsidienne: {
     sombre: true,
-    label: "Obsidienne",
-    swatch: "#F472B6",
+    label: 'Obsidienne',
+    swatch: '#F472B6',
     variables: {
-      "--fond": "#262226", "--texte": "#F2E9F0", "--texte-doux": "#9C8996",
-      "--accent": "#F472B6", "--accent-doux": "#42323D",
-      "--valide": "#3ED890", "--danger": "#FF7A70",
-      "--ombre-c1": "#1b181b", "--ombre-c2": "#312c31"
+      '--fond': '#262226',
+      '--texte': '#F2E9F0',
+      '--texte-doux': '#9C8996',
+      '--accent': '#F472B6',
+      '--accent-doux': '#42323D',
+      '--valide': '#3ED890',
+      '--danger': '#FF7A70',
+      '--ombre-c1': '#1b181b',
+      '--ombre-c2': '#312c31'
     }
   }
+};
 
 /* Surfaces « verre » (barre du haut, bouton, lignes de tâches) : claires par défaut,
    sombres pour les thèmes marqués  sombre: true  (ex. Nuit). */
