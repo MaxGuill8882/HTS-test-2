@@ -1261,23 +1261,27 @@ h1,h2,h3{
 .badge-camera svg{ width:12px;height:12px; }
 
 /* --- Sélecteur de thème --- */
-.selecteur-theme{
-  display:flex;
-  gap:12px;
-  margin-bottom:22px;
-  justify-content:center;
+.selecteur-theme {
+  display: grid;
+  grid-template-columns: repeat(5, 32px);
+  gap: 12px;
+  margin-bottom: 22px;
+  justify-content: center;
 }
-.pastille-theme{
-  width:32px;height:32px;
-  border-radius:50%;
-  cursor:pointer;
-  box-shadow:var(--ombre-ext-sm);
-  border:2px solid transparent;
-  transition:transform .15s ease;
+
+.pastille-theme {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--ombre-ext-sm);
+  border: 2px solid transparent;
+  transition: transform .15s ease;
 }
-.pastille-theme.actif{
-  border-color:var(--texte);
-  transform:scale(1.12);
+
+.pastille-theme.actif {
+  border-color: var(--texte);
+  transform: scale(1.12);
 }
 
 /* --- Bouton d'édition profil --- */
