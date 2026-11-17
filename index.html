@@ -1265,7 +1265,7 @@ h1,h2,h3{
   display: grid;
   grid-template-columns: repeat(5, 32px);
   gap: 12px;
-  margin-bottom: 22px;
+  margin-bottom: 0; /* Évite un vide inutile en bas */
   justify-content: center;
 }
 
@@ -1283,6 +1283,12 @@ h1,h2,h3{
   border-color: var(--texte);
   transform: scale(1.12);
 }
+
+.options-edition-profil {
+  border-radius: 14px !important; /* Coins légèrement arrondis au lieu de la pilule */
+  padding: 14px !important;       /* Empêche les pastilles des coins de toucher le bord */
+}
+
 
 /* --- Bouton d'édition profil --- */
 .conteneur-edition-profil{
